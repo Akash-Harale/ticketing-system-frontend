@@ -2,18 +2,26 @@ import { ReactNode, useEffect, useState } from 'react';
 import { AuthContext } from './AuthContext';
 import { authService } from '@/services/auth.service';
 
+interface User {
+  id: string;
+  email: string;
+  role: 'admin' | 'agent' | 'user';
+}
+
 interface Props {
   children: ReactNode;
 }
 
 export const AuthProvider = ({ children }: Props) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   const login = async (email: string, password: string) => {
     const data = await authService.login(email, password);
 
-    localStorage.setItem('token', data.token);
+    // Store both tokens consistently
+    localStorage.setItem('accessToken', data.accessToken);
+    localStorage.setItem('refreshToken', data.refreshToken);
     setUser(data.user);
   };
 
@@ -24,9 +32,10 @@ export const AuthProvider = ({ children }: Props) => {
 
   const loadUser = async () => {
     try {
-      const user = await authService.getProfile();
-      setUser(user);
+      const profile = await authService.getProfile();
+      setUser(profile);
     } catch {
+      // Token is invalid / expired — clear everything
       logout();
     } finally {
       setLoading(false);
@@ -34,7 +43,7 @@ export const AuthProvider = ({ children }: Props) => {
   };
 
   useEffect(() => {
-    if (localStorage.getItem('token')) {
+    if (localStorage.getItem('accessToken')) {
       loadUser();
     } else {
       setLoading(false);
@@ -45,10 +54,10 @@ export const AuthProvider = ({ children }: Props) => {
     <AuthContext.Provider
       value={{
         user,
+        loading,
         login,
         logout,
         isAuthenticated: !!user,
-        loading,
       }}
     >
       {children}
