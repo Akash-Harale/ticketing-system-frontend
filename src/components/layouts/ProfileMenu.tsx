@@ -23,15 +23,15 @@ export const ProfileMenu = () => {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white font-semibold text-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-lg font-semibold text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
       >
         {getInitial(user?.email)}
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-64 rounded-lg border bg-white shadow-lg z-50">
-          <div className="border-b p-4 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white font-semibold text-2xl">
+        <div className="absolute right-0 z-50 mt-2 w-64 rounded-lg border bg-white shadow-lg">
+          <div className="flex items-center gap-3 border-b p-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-2xl font-semibold text-white">
               {getInitial(user?.email)}
             </div>
             <div>
@@ -42,7 +42,7 @@ export const ProfileMenu = () => {
 
           <button
             onClick={handleLogout}
-            className="w-full px-4 py-3 text-left hover:bg-gray-100 text-red-600 hover:text-red-700"
+            className="w-full px-4 py-3 text-left text-red-600 hover:bg-gray-100 hover:text-red-700"
           >
             Logout
           </button>

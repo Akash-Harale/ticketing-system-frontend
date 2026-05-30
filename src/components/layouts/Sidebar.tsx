@@ -46,14 +46,16 @@ export const Sidebar = () => {
             <Link
               key={to}
               to={to}
-              className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150 ${isActive
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/40'
-                : 'text-gray-400 hover:bg-gray-800/70 hover:text-gray-100'
-                } `}
+              className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
+                isActive
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/40'
+                  : 'text-gray-400 hover:bg-gray-800/70 hover:text-gray-100'
+              } `}
             >
               <Icon
-                className={`h-4 w-4 flex-shrink-0 transition-colors ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'
-                  }`}
+                className={`h-4 w-4 flex-shrink-0 transition-colors ${
+                  isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'
+                }`}
               />
               <span>{label}</span>
               {isActive && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-white/70" />}
