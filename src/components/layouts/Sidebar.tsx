@@ -24,7 +24,7 @@ export const Sidebar = () => {
   return (
     <aside className="fixed top-0 left-0 flex h-screen w-64 flex-col border-r border-gray-800 bg-gray-950">
       {/* Logo */}
-      <div className="flex items-center gap-3 border-b border-gray-800 px-5 py-5">
+      <div className="flex items-center gap-3 border-b border-gray-800 px-5 py-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
           <Ticket className="h-4 w-4 text-white" />
         </div>
