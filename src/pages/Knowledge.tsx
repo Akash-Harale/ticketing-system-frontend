@@ -319,7 +319,7 @@ const VideoSection = ({ query }: { query: string }) => {
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition-transform duration-200 group-hover:scale-110">
                 <Play className="h-4 w-4 translate-x-0.5" />
               </div>
-              <span className="absolute bottom-1 right-1.5 rounded bg-black/60 px-1 py-0.5 text-[10px] font-medium text-white">
+              <span className="absolute right-1.5 bottom-1 rounded bg-black/60 px-1 py-0.5 text-[10px] font-medium text-white">
                 {vid.duration}
               </span>
             </div>

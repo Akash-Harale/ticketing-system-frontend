@@ -52,9 +52,7 @@ export const Accordion = ({ items, allowMultiple = false, className = '' }: Acco
               <div className="flex items-center gap-3">
                 <span
                   className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors duration-200 ${
-                    isOpen
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-100 text-gray-500'
+                    isOpen ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500'
                   }`}
                 >
                   {index + 1}
