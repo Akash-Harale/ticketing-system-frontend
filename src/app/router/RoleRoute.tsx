@@ -13,8 +13,8 @@ export const RoleRoute = ({ roles }: RoleRouteProps) => {
     return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
   }
 
-  // User is logged in but doesn't have the required role → show 403 page
-  if (!user || !roles.includes(user.role)) {
+  // Check role_id.name against the allowed roles list
+  if (!user || !roles.includes(user.role_id?.name)) {
     return <Unauthorized />;
   }
 
