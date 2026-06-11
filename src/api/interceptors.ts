@@ -63,11 +63,12 @@ export const setupInterceptors = (onUnauthorized: () => void) => {
         try {
           const data = await authService.refresh(refreshToken);
 
-          localStorage.setItem('accessToken', data.accessToken);
+          // New backend returns { token, refreshToken }
+          localStorage.setItem('accessToken', data.token);
           localStorage.setItem('refreshToken', data.refreshToken);
 
-          flushQueue(data.accessToken);
-          originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+          flushQueue(data.token);
+          originalRequest.headers.Authorization = `Bearer ${data.token}`;
 
           return api(originalRequest);
         } catch (refreshError) {

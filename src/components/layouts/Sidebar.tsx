@@ -8,18 +8,26 @@ import {
   ShieldCheck,
   Ticket,
 } from 'lucide-react';
+import { useAuth } from '@/context/auth/useAuth';
 
-const navItems = [
+const baseNavItems = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
   { label: 'Program Unit', to: '/program-unit', icon: Package },
   { label: 'User Management', to: '/users', icon: Users },
   { label: 'Rollout Management', to: '/rollout', icon: GitBranch },
   { label: 'Knowledge Base', to: '/knowledge', icon: BookOpen },
-  { label: 'Admin', to: '/admin', icon: ShieldCheck },
 ];
+
+const adminNavItem = { label: 'Admin', to: '/admin', icon: ShieldCheck };
 
 export const Sidebar = () => {
   const location = useLocation();
+  const { user } = useAuth();
+
+  const isSuperadmin = user?.role_id?.name === 'Superadmin';
+  const navItems = isSuperadmin ? [...baseNavItems, adminNavItem] : baseNavItems;
+
+  const initial = user?.email?.charAt(0).toUpperCase() ?? '?';
 
   return (
     <aside className="fixed top-0 left-0 flex h-screen w-64 flex-col border-r border-gray-800 bg-gray-950">
@@ -28,7 +36,7 @@ export const Sidebar = () => {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
           <Ticket className="h-4 w-4 text-white" />
         </div>
-        <span className="text-[15px] font-semibold tracking-wide text-white">Ticketing</span>
+        <span className="text-[15px] font-semibold tracking-wide text-white">NSS Portal</span>
       </div>
 
       {/* Nav Label */}
@@ -64,15 +72,15 @@ export const Sidebar = () => {
         })}
       </nav>
 
-      {/* Footer */}
+      {/* Footer — live user info */}
       <div className="border-t border-gray-800 px-4 py-4">
         <div className="mb-3 flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full border border-indigo-500/30 bg-indigo-500/20 text-xs font-semibold text-indigo-400">
-            AK
+            {initial}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-medium text-gray-200">Akash Kumar</p>
-            <p className="truncate text-[11px] text-gray-500">akash@example.com</p>
+            <p className="truncate text-[13px] font-medium text-gray-200">{user?.email ?? '—'}</p>
+            <p className="truncate text-[11px] text-gray-500">{user?.role_id?.name ?? '—'}</p>
           </div>
         </div>
       </div>

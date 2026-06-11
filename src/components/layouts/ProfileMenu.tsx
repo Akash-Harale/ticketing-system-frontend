@@ -36,7 +36,7 @@ export const ProfileMenu = () => {
             </div>
             <div>
               <p className="font-medium">{user?.email}</p>
-              <p className="text-sm text-gray-500">{user?.role}</p>
+              <p className="text-sm text-gray-500">{user?.role_id?.name}</p>
             </div>
           </div>
 

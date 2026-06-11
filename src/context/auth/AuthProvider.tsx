@@ -1,12 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { AuthContext } from './AuthContext';
+import { AuthContext, User } from './AuthContext';
 import { authService } from '@/services/auth.service';
-
-interface User {
-  id: string;
-  email: string;
-  role: 'admin' | 'agent' | 'user';
-}
 
 interface Props {
   children: ReactNode;
@@ -19,10 +13,10 @@ export const AuthProvider = ({ children }: Props) => {
   const login = async (email: string, password: string) => {
     const data = await authService.login(email, password);
 
-    // Store both tokens consistently
-    localStorage.setItem('accessToken', data.accessToken);
+    // New backend returns: { token, refreshToken, data: { user } }
+    localStorage.setItem('accessToken', data.token);
     localStorage.setItem('refreshToken', data.refreshToken);
-    setUser(data.user);
+    setUser(data.data.user);
   };
 
   const logout = () => {
@@ -33,6 +27,7 @@ export const AuthProvider = ({ children }: Props) => {
   const loadUser = async () => {
     try {
       const profile = await authService.getProfile();
+      // New backend /auth/me returns: { status, data: { user } }
       setUser(profile);
     } catch {
       // Token is invalid / expired — clear everything

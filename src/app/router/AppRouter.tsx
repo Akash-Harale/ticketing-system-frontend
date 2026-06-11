@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from '@/pages/Home';
 import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
+import Admin from '@/pages/Admin';
 
 import { MainLayout } from '@/components/layouts/MainLayout';
 import { AuthLayout } from '@/components/layouts/AuthLayout';
@@ -56,11 +57,11 @@ export const AppRouter = () => {
           </Route>
         </Route>
 
-        {/* Protected — admin only */}
+        {/* Protected — Superadmin only */}
         <Route element={<ProtectedRoute />}>
-          <Route element={<RoleRoute roles={['admin']} />}>
+          <Route element={<RoleRoute roles={['Superadmin']} />}>
             <Route element={<DashboardLayout />}>
-              <Route path="/admin" element={<h1>Admin Panel</h1>} />
+              <Route path="/admin" element={<Admin />} />
             </Route>
           </Route>
         </Route>
