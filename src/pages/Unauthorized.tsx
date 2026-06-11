@@ -34,7 +34,7 @@ export default function Unauthorized() {
         <h1 className="text-foreground text-3xl font-bold tracking-tight">Access Denied</h1>
         <p className="text-muted-foreground max-w-sm">
           {user
-            ? `Your account (${user.role}) does not have permission to view this page.`
+            ? `Your account (${user.role_id}) does not have permission to view this page.`
             : 'You must be logged in with the appropriate role to access this page.'}
         </p>
       </div>
