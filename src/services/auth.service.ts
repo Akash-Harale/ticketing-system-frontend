@@ -1,24 +1,11 @@
 import { api } from '@/api/axios';
 import { User } from '@/context/auth/AuthContext';
 
-// Matches the new backend login/refresh response shape:
-// { status, token, refreshToken, data: { user } }
 export interface AuthResponse {
   status: string;
-  token: string;
+  accessToken: string;
   refreshToken: string;
-  data: {
-    user: User;
-  };
-}
-
-// Matches the new backend /auth/me response shape:
-// { status, data: { user } }
-interface ProfileResponse {
-  status: string;
-  data: {
-    user: User;
-  };
+  user: User;
 }
 
 export const authService = {
@@ -33,8 +20,8 @@ export const authService = {
   },
 
   getProfile: async (): Promise<User> => {
-    const { data } = await api.get<ProfileResponse>('/auth/me');
-    return data.data.user;
+    const { data } = await api.get<User>('/auth/me');
+    return data;
   },
 
   logout: () => {
