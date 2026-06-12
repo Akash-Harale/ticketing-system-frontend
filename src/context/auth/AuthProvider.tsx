@@ -13,10 +13,9 @@ export const AuthProvider = ({ children }: Props) => {
   const login = async (email: string, password: string) => {
     const data = await authService.login(email, password);
 
-    // New backend returns: { token, refreshToken, data: { user } }
-    localStorage.setItem('accessToken', data.token);
+    localStorage.setItem('accessToken', data.accessToken);
     localStorage.setItem('refreshToken', data.refreshToken);
-    setUser(data.data.user);
+    setUser(data.user);
   };
 
   const logout = () => {
@@ -27,7 +26,6 @@ export const AuthProvider = ({ children }: Props) => {
   const loadUser = async () => {
     try {
       const profile = await authService.getProfile();
-      // New backend /auth/me returns: { status, data: { user } }
       setUser(profile);
     } catch {
       // Token is invalid / expired — clear everything
