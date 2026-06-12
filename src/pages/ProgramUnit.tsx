@@ -1,9 +1,26 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Plus, Search, Building2, MapPin, User, Mail, Phone,
-  ChevronRight, ChevronDown, X, AlertCircle, CheckCircle2, Loader2, Calendar
+  Plus,
+  Search,
+  Building2,
+  MapPin,
+  User,
+  Mail,
+  Phone,
+  ChevronRight,
+  ChevronDown,
+  X,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  Calendar,
 } from 'lucide-react';
-import { organizationService, Organization, CreateOrganizationPayload, Member } from '@/services/organization.service';
+import {
+  organizationService,
+  Organization,
+  CreateOrganizationPayload,
+  Member,
+} from '@/services/organization.service';
 import { locationService, State, District } from '@/services/location.service';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -143,7 +160,10 @@ export const ProgramUnit = () => {
 
   // ── Fetch states on mount ─────────────────────────────────────────────────
   useEffect(() => {
-    locationService.getStates().then(setStates).catch(() => {});
+    locationService
+      .getStates()
+      .then(setStates)
+      .catch(() => {});
   }, []);
 
   // ── Fetch districts when state changes in Form ────────────────────────────
@@ -184,7 +204,9 @@ export const ProgramUnit = () => {
 
   const closeModal = () => setModalOpen(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -237,7 +259,9 @@ export const ProgramUnit = () => {
         setSubmitSuccess('');
       }, 1800);
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setSubmitError(
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -271,52 +295,56 @@ export const ProgramUnit = () => {
       getStateName(u).toLowerCase().includes(search.toLowerCase()),
   );
 
-  const unitsByState = filteredUnits.reduce((acc, unit) => {
-    const stateId = getStateId(unit);
-    if (!stateId) return acc;
-    if (!acc[stateId]) acc[stateId] = [];
-    acc[stateId].push(unit);
-    return acc;
-  }, {} as Record<string, Organization[]>);
+  const unitsByState = filteredUnits.reduce(
+    (acc, unit) => {
+      const stateId = getStateId(unit);
+      if (!stateId) return acc;
+      if (!acc[stateId]) acc[stateId] = [];
+      acc[stateId].push(unit);
+      return acc;
+    },
+    {} as Record<string, Organization[]>,
+  );
 
-  const statesWithUnits = Object.keys(unitsByState).map((stateId) => {
-    const unit = unitsByState[stateId][0];
-    return {
-      id: stateId,
-      name: getStateName(unit),
-      units: unitsByState[stateId],
-    };
-  }).sort((a, b) => a.name.localeCompare(b.name));
+  const statesWithUnits = Object.keys(unitsByState)
+    .map((stateId) => {
+      const unit = unitsByState[stateId][0];
+      return {
+        id: stateId,
+        name: getStateName(unit),
+        units: unitsByState[stateId],
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="relative min-h-screen text-gray-900">
-      
       {/* ── Left Drawer ───────────────────────────────────────────────────── */}
       {/* Overlay */}
       {selectedUnit && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-gray-900/40 backdrop-blur-sm transition-opacity"
           onClick={closeDrawer}
         />
       )}
-      
+
       {/* Drawer */}
-      <div 
+      <div
         className={`fixed inset-y-0 right-0 z-50 w-[420px] max-w-full bg-white shadow-2xl transition-transform duration-300 ease-in-out ${
           selectedUnit ? 'translate-x-0' : 'translate-x-full'
         } flex flex-col`}
       >
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 bg-gray-50/50">
+        <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50/50 px-6 py-4">
           <h2 className="text-lg font-bold text-gray-900">Program Unit Details</h2>
           <button
             onClick={closeDrawer}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition-colors"
+            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        
+
         {/* Drawer Tabs */}
         <div className="flex border-b border-gray-200 bg-white px-2">
           {TABS.map((tab) => (
@@ -334,7 +362,7 @@ export const ProgramUnit = () => {
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6 bg-white">
+        <div className="flex-1 overflow-y-auto bg-white px-6 py-6">
           {selectedUnit && (
             <div className="flex flex-col gap-6">
               {/* Unit Info Section */}
@@ -342,30 +370,39 @@ export const ProgramUnit = () => {
                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-6 shadow-sm">
                   <div className="mb-5 flex items-start justify-between">
                     <div>
-                      <h3 className="text-base font-bold text-gray-900">{selectedUnit.orgn_name}</h3>
-                      <p className="mt-1 text-sm font-semibold text-indigo-600">{selectedUnit.orgn_id}</p>
+                      <h3 className="text-base font-bold text-gray-900">
+                        {selectedUnit.orgn_name}
+                      </h3>
+                      <p className="mt-1 text-sm font-semibold text-indigo-600">
+                        {selectedUnit.orgn_id}
+                      </p>
                     </div>
-                    <span className="rounded-full bg-indigo-100 px-3 py-1.5 text-[11px] font-bold text-indigo-700 uppercase tracking-wide">
+                    <span className="rounded-full bg-indigo-100 px-3 py-1.5 text-[11px] font-bold tracking-wide text-indigo-700 uppercase">
                       PU
                     </span>
                   </div>
-                  
+
                   <div className="flex flex-col gap-4">
                     <div className="flex items-start gap-3 text-sm">
                       <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-                      <div className="text-gray-700 leading-relaxed">
+                      <div className="leading-relaxed text-gray-700">
                         {[selectedUnit.orgn_address1, selectedUnit.orgn_address2]
                           .filter(Boolean)
-                          .map((line, i) => <p key={i}>{line}</p>)}
+                          .map((line, i) => (
+                            <p key={i}>{line}</p>
+                          ))}
                         <p>
-                          {[selectedUnit.orgn_place, getDistrictName(selectedUnit)].filter(Boolean).join(', ')}
+                          {[selectedUnit.orgn_place, getDistrictName(selectedUnit)]
+                            .filter(Boolean)
+                            .join(', ')}
                         </p>
-                        <p className="font-medium text-gray-900 mt-1">
-                          {getStateName(selectedUnit)} {selectedUnit.orgn_pincode ? `- ${selectedUnit.orgn_pincode}` : ''}
+                        <p className="mt-1 font-medium text-gray-900">
+                          {getStateName(selectedUnit)}{' '}
+                          {selectedUnit.orgn_pincode ? `- ${selectedUnit.orgn_pincode}` : ''}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-gray-600 pt-3 border-t border-gray-200">
+                    <div className="flex items-center gap-3 border-t border-gray-200 pt-3 text-sm text-gray-600">
                       <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
                       <p>Created on {new Date(selectedUnit.createdAt).toLocaleDateString()}</p>
                     </div>
@@ -384,28 +421,36 @@ export const ProgramUnit = () => {
                   ) : selectedCoordinator ? (
                     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                       <div className="mb-5 flex items-center gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-bold text-lg">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-700">
                           {selectedCoordinator.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="text-base font-bold text-gray-900">{selectedCoordinator.name}</p>
-                          <p className="text-xs text-green-600 font-medium flex items-center gap-1.5 mt-1">
+                          <p className="text-base font-bold text-gray-900">
+                            {selectedCoordinator.name}
+                          </p>
+                          <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-green-600">
                             <CheckCircle2 className="h-3.5 w-3.5" /> Active Coordinator
                           </p>
                         </div>
                       </div>
-                      
-                      <div className="mt-6 flex flex-col gap-4 text-sm bg-gray-50 rounded-lg p-4">
+
+                      <div className="mt-6 flex flex-col gap-4 rounded-lg bg-gray-50 p-4 text-sm">
                         <div className="flex items-center gap-3 text-gray-700">
-                          <Mail className="h-4 w-4 text-gray-400 shrink-0" />
-                          <a href={`mailto:${selectedCoordinator.email}`} className="text-indigo-600 font-medium hover:underline">
+                          <Mail className="h-4 w-4 shrink-0 text-gray-400" />
+                          <a
+                            href={`mailto:${selectedCoordinator.email}`}
+                            className="font-medium text-indigo-600 hover:underline"
+                          >
                             {selectedCoordinator.email}
                           </a>
                         </div>
                         <div className="flex items-center gap-3 text-gray-700">
-                          <Phone className="h-4 w-4 text-gray-400 shrink-0" />
+                          <Phone className="h-4 w-4 shrink-0 text-gray-400" />
                           {selectedCoordinator.mobile ? (
-                            <a href={`tel:${selectedCoordinator.mobile}`} className="font-medium hover:text-indigo-600 transition-colors">
+                            <a
+                              href={`tel:${selectedCoordinator.mobile}`}
+                              className="font-medium transition-colors hover:text-indigo-600"
+                            >
                               {selectedCoordinator.mobile}
                             </a>
                           ) : (
@@ -416,9 +461,11 @@ export const ProgramUnit = () => {
                     </div>
                   ) : (
                     <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 p-8 text-center">
-                      <User className="mx-auto h-10 w-10 text-gray-300 mb-3" />
+                      <User className="mx-auto mb-3 h-10 w-10 text-gray-300" />
                       <p className="text-sm font-medium text-gray-600">No coordinator assigned</p>
-                      <p className="text-xs text-gray-400 mt-1">This program unit doesn't have a coordinator yet.</p>
+                      <p className="mt-1 text-xs text-gray-400">
+                        This program unit doesn't have a coordinator yet.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -449,14 +496,14 @@ export const ProgramUnit = () => {
 
         {/* Search */}
         <div className="relative mt-4 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             id="input-search-units"
             type="search"
             placeholder="Search by name, ID or state…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-4 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm"
+            className="w-full rounded-lg border border-gray-300 bg-white py-2 pr-4 pl-9 text-sm text-gray-900 placeholder-gray-400 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
           />
         </div>
       </div>
@@ -479,10 +526,7 @@ export const ProgramUnit = () => {
               {search ? 'No units match your search.' : 'No program units yet.'}
             </p>
             {!search && (
-              <button
-                onClick={openModal}
-                className="mt-3 text-sm text-indigo-600 hover:underline"
-              >
+              <button onClick={openModal} className="mt-3 text-sm text-indigo-600 hover:underline">
                 Add your first program unit →
               </button>
             )}
@@ -491,7 +535,7 @@ export const ProgramUnit = () => {
           <div className="flex flex-col gap-4">
             {statesWithUnits.map((state) => {
               const isExpanded = expandedStateId === state.id;
-              
+
               // Apply district filter
               const stateUnits = state.units.filter((u) => {
                 if (!districtFilter) return true;
@@ -499,7 +543,10 @@ export const ProgramUnit = () => {
               });
 
               return (
-                <div key={state.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div
+                  key={state.id}
+                  className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+                >
                   {/* Accordion Header */}
                   <button
                     onClick={() => {
@@ -512,12 +559,18 @@ export const ProgramUnit = () => {
                     className="flex w-full items-center justify-between px-6 py-4 transition-colors hover:bg-gray-50"
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-colors ${isExpanded ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}>
+                      <span
+                        className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-colors ${isExpanded ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
+                      >
                         {state.name.charAt(0)}
                       </span>
                       <div className="text-left">
-                        <span className="block text-base font-semibold text-gray-900">{state.name}</span>
-                        <span className="block text-xs text-gray-500">{state.units.length} Unit(s)</span>
+                        <span className="block text-base font-semibold text-gray-900">
+                          {state.name}
+                        </span>
+                        <span className="block text-xs text-gray-500">
+                          {state.units.length} Unit(s)
+                        </span>
                       </div>
                     </div>
                     <ChevronDown
@@ -532,11 +585,15 @@ export const ProgramUnit = () => {
                     } overflow-hidden`}
                   >
                     <div className="border-t border-gray-100 bg-gray-50/50 p-6">
-                      
                       {/* District Filter */}
                       <div className="mb-6 flex items-center justify-end">
                         <div className="flex items-center gap-2">
-                          <label htmlFor={`filter-${state.id}`} className="text-sm font-medium text-gray-600">Filter by District:</label>
+                          <label
+                            htmlFor={`filter-${state.id}`}
+                            className="text-sm font-medium text-gray-600"
+                          >
+                            Filter by District:
+                          </label>
                           <select
                             id={`filter-${state.id}`}
                             value={districtFilter}
@@ -544,8 +601,10 @@ export const ProgramUnit = () => {
                             className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                           >
                             <option value="">All Districts</option>
-                            {expandedStateDistricts.map(d => (
-                              <option key={d._id} value={d._id}>{d.district_name}</option>
+                            {expandedStateDistricts.map((d) => (
+                              <option key={d._id} value={d._id}>
+                                {d.district_name}
+                              </option>
                             ))}
                           </select>
                         </div>
@@ -553,7 +612,7 @@ export const ProgramUnit = () => {
 
                       {/* Units Grid */}
                       {stateUnits.length === 0 ? (
-                        <div className="py-8 text-center text-sm text-gray-500 border border-dashed border-gray-300 rounded-xl bg-white">
+                        <div className="rounded-xl border border-dashed border-gray-300 bg-white py-8 text-center text-sm text-gray-500">
                           No units found in this district.
                         </div>
                       ) : (
@@ -564,24 +623,28 @@ export const ProgramUnit = () => {
                               onClick={() => openUnitDetails(unit)}
                               className="group relative flex cursor-pointer flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-indigo-400 hover:shadow-md hover:shadow-indigo-100/50"
                             >
-                              <span className="absolute right-4 top-4 rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-600">
+                              <span className="absolute top-4 right-4 rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider text-indigo-600 uppercase">
                                 PU
                               </span>
                               <div>
-                                <p className="pr-10 text-[14px] font-bold text-gray-900 leading-snug group-hover:text-indigo-600 transition-colors">
+                                <p className="pr-10 text-[14px] leading-snug font-bold text-gray-900 transition-colors group-hover:text-indigo-600">
                                   {unit.orgn_name}
                                 </p>
-                                <p className="mt-0.5 text-xs font-medium text-gray-500">{unit.orgn_id}</p>
+                                <p className="mt-0.5 text-xs font-medium text-gray-500">
+                                  {unit.orgn_id}
+                                </p>
                               </div>
-                              <div className="flex flex-col gap-1.5 text-xs text-gray-500 mt-1">
+                              <div className="mt-1 flex flex-col gap-1.5 text-xs text-gray-500">
                                 {(unit.orgn_place || getDistrictName(unit) !== '—') && (
                                   <span className="flex items-center gap-1.5">
                                     <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                                    {[unit.orgn_place, getDistrictName(unit)].filter(Boolean).join(', ')}
+                                    {[unit.orgn_place, getDistrictName(unit)]
+                                      .filter(Boolean)
+                                      .join(', ')}
                                   </span>
                                 )}
                               </div>
-                              <div className="mt-auto pt-2 flex items-center justify-end text-indigo-600 opacity-0 transition-opacity group-hover:opacity-100">
+                              <div className="mt-auto flex items-center justify-end pt-2 text-indigo-600 opacity-0 transition-opacity group-hover:opacity-100">
                                 <span className="text-xs font-medium">View details</span>
                                 <ChevronRight className="h-4 w-4" />
                               </div>
@@ -610,9 +673,7 @@ export const ProgramUnit = () => {
             <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
               <div>
                 <h2 className="text-base font-bold text-gray-900">Add Program Unit</h2>
-                <p className="text-xs text-gray-500">
-                  Fill in both tabs, then submit.
-                </p>
+                <p className="text-xs text-gray-500">Fill in both tabs, then submit.</p>
               </div>
               <button
                 id="btn-close-modal"
@@ -632,7 +693,10 @@ export const ProgramUnit = () => {
                   onClick={() => {
                     if (idx === 1) {
                       const e = validateTab1(form);
-                      if (Object.keys(e).length > 0) { setErrors(e); return; }
+                      if (Object.keys(e).length > 0) {
+                        setErrors(e);
+                        return;
+                      }
                     }
                     setErrors({});
                     setActiveTab(tab);
@@ -645,9 +709,7 @@ export const ProgramUnit = () => {
                 >
                   <span
                     className={`mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${
-                      activeTab === tab
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-200 text-gray-500'
+                      activeTab === tab ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'
                     }`}
                   >
                     {idx + 1}
@@ -739,7 +801,10 @@ export const ProgramUnit = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label htmlFor="select-state" className="mb-1.5 block text-xs font-semibold text-gray-700">
+                        <label
+                          htmlFor="select-state"
+                          className="mb-1.5 block text-xs font-semibold text-gray-700"
+                        >
                           State *
                         </label>
                         <select
@@ -747,7 +812,7 @@ export const ProgramUnit = () => {
                           name="orgn_state"
                           value={form.orgn_state}
                           onChange={handleChange}
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm"
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                         >
                           <option value="">Select state…</option>
                           {states.map((s) => (
@@ -762,7 +827,10 @@ export const ProgramUnit = () => {
                       </div>
 
                       <div>
-                        <label htmlFor="select-district" className="mb-1.5 block text-xs font-semibold text-gray-700">
+                        <label
+                          htmlFor="select-district"
+                          className="mb-1.5 block text-xs font-semibold text-gray-700"
+                        >
                           District
                         </label>
                         <select
@@ -771,7 +839,7 @@ export const ProgramUnit = () => {
                           value={form.orgn_district}
                           onChange={handleChange}
                           disabled={!form.orgn_state || loadingDistricts}
-                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 shadow-sm"
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
                         >
                           <option value="">
                             {loadingDistricts ? 'Loading…' : 'Select district…'}
@@ -790,13 +858,13 @@ export const ProgramUnit = () => {
                 {/* ── TAB 2: Coordinator Details ──────────────────────────── */}
                 {activeTab === TABS[1] && (
                   <div className="flex flex-col gap-5">
-                    <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3.5 text-sm text-indigo-800 flex items-start gap-3 shadow-sm">
+                    <div className="flex items-start gap-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3.5 text-sm text-indigo-800 shadow-sm">
                       <AlertCircle className="h-5 w-5 shrink-0 text-indigo-500" />
                       <div>
                         <p className="font-bold">Default Login Password</p>
                         <p className="mt-0.5 text-indigo-700/90">
                           The coordinator's account will be created with the default password:{' '}
-                          <code className="rounded bg-indigo-100 px-1.5 py-0.5 font-mono font-bold text-indigo-900 ml-1">
+                          <code className="ml-1 rounded bg-indigo-100 px-1.5 py-0.5 font-mono font-bold text-indigo-900">
                             nutan123
                           </code>
                         </p>
@@ -842,13 +910,13 @@ export const ProgramUnit = () => {
               </div>
 
               {/* Modal Footer */}
-              <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4 rounded-b-2xl">
+              <div className="flex items-center justify-between rounded-b-2xl border-t border-gray-200 bg-gray-50 px-6 py-4">
                 {activeTab === TABS[0] ? (
                   <>
                     <button
                       type="button"
                       onClick={closeModal}
-                      className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                      className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
                     >
                       Cancel
                     </button>
@@ -856,7 +924,7 @@ export const ProgramUnit = () => {
                       id="btn-next-tab"
                       type="button"
                       onClick={handleNextTab}
-                      className="flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 shadow-sm"
+                      className="flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
                     >
                       Next
                       <ChevronRight className="h-4 w-4" />
@@ -867,7 +935,7 @@ export const ProgramUnit = () => {
                     <button
                       type="button"
                       onClick={() => setActiveTab(TABS[0])}
-                      className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-1"
+                      className="flex items-center gap-1 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
                     >
                       <ChevronRight className="h-4 w-4 rotate-180" /> Back
                     </button>
@@ -875,7 +943,7 @@ export const ProgramUnit = () => {
                       id="btn-submit-program-unit"
                       type="submit"
                       disabled={submitting}
-                      className="flex min-w-[140px] items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:opacity-70 shadow-sm"
+                      className="flex min-w-[140px] items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:opacity-70"
                     >
                       {submitting ? (
                         <>
@@ -912,20 +980,18 @@ const Field = ({ id, label, name, error, icon, ...rest }: FieldProps) => (
       {label}
     </label>
     <div className="relative">
-      {icon && (
-        <span className="absolute left-3 top-1/2 -translate-y-1/2">{icon}</span>
-      )}
+      {icon && <span className="absolute top-1/2 left-3 -translate-y-1/2">{icon}</span>}
       <input
         id={id}
         name={name}
-        className={`w-full rounded-lg border bg-white py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:ring-1 shadow-sm ${
+        className={`w-full rounded-lg border bg-white py-2.5 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition outline-none focus:ring-1 ${
           error
             ? 'border-red-400 focus:border-red-500 focus:ring-red-500/30'
             : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500/30'
-        } ${icon ? 'pl-10 pr-3' : 'px-3'}`}
+        } ${icon ? 'pr-3 pl-10' : 'px-3'}`}
         {...rest}
       />
     </div>
-    {error && <p className="mt-1.5 text-xs text-red-500 font-medium">{error}</p>}
+    {error && <p className="mt-1.5 text-xs font-medium text-red-500">{error}</p>}
   </div>
 );

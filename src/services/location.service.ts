@@ -31,7 +31,7 @@ export const locationService = {
   /** Fetch all districts for a given state ObjectId */
   getDistrictsByState: async (stateId: string): Promise<District[]> => {
     const { data } = await api.get<ApiResponse<District[]>>(
-      `/location/states/${stateId}/districts`
+      `/location/states/${stateId}/districts`,
     );
     return data.data;
   },

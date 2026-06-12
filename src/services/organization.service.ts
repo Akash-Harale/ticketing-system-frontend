@@ -15,8 +15,8 @@ export interface CreateOrganizationPayload {
   orgn_address1?: string;
   orgn_address2?: string;
   orgn_place?: string;
-  orgn_district?: string;   // ObjectId string
-  orgn_state: string;       // ObjectId string
+  orgn_district?: string; // ObjectId string
+  orgn_state: string; // ObjectId string
   orgn_pincode: string;
   coordinator?: Coordinator;
 }
@@ -54,7 +54,6 @@ interface ApiResponse<T> {
   data: T;
 }
 
-
 // ── Service ──────────────────────────────────────────────────────────────────
 
 export const organizationService = {
@@ -64,7 +63,10 @@ export const organizationService = {
    * creates a Member + User record in one transaction.
    */
   create: async (payload: CreateOrganizationPayload) => {
-    const { data } = await api.post<ApiResponse<{ organization: Organization }>>('/organizations', payload);
+    const { data } = await api.post<ApiResponse<{ organization: Organization }>>(
+      '/organizations',
+      payload,
+    );
     return data;
   },
 
