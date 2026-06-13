@@ -1,25 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Plus, ChevronDown, Loader2, Building2, User } from 'lucide-react';
-import { STATES, getDistricts } from '../../programUnit/data/programUnitData';
 
 /* ─────────────────────────────────────────────
    TYPES
 ───────────────────────────────────────────── */
 
 export interface AddUserFormData {
-  // Unit / Institution details
-  college: string;
-  state: string;
-  district: string;
-  address: string;
-  unitType: 'College' | 'University' | 'Institution' | '';
-  volunteerStrength: string;
-  establishedYear: string;
-  // Coordinator details
-  coordinatorName: string;
-  coordinatorDesignation: string;
-  coordinatorPhone: string;
-  coordinatorEmail: string;
+  organization: string;
+  name: string;
+  email: string;
+  mobile: string;
+  role_id: string;
 }
 
 interface AddUserModalProps {
@@ -28,22 +19,18 @@ interface AddUserModalProps {
   onSubmit: (data: AddUserFormData) => void;
 }
 
-/* ─────────────────────────────────────────────
-   REUSABLE FIELD COMPONENTS
-───────────────────────────────────────────── */
-
-interface FormSelectProps {
+interface FormSelectObjectProps {
   id: string;
   label: string;
   value: string;
   onChange: (v: string) => void;
-  options: string[];
+  options: { label: string; value: string }[];
   placeholder: string;
   disabled?: boolean;
   error?: string;
 }
 
-const FormSelect = ({
+const FormSelectObject = ({
   id,
   label,
   value,
@@ -52,65 +39,36 @@ const FormSelect = ({
   placeholder,
   disabled = false,
   error,
-}: FormSelectProps) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
+}: FormSelectObjectProps) => {
   return (
     <div className="mb-4">
       <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-gray-700">
         {label}
       </label>
-      <div ref={ref} className="relative">
-        <button
+      <div className="relative">
+        <select
           id={id}
-          type="button"
           disabled={disabled}
-          onClick={() => !disabled && setOpen((o) => !o)}
-          className={`flex w-full items-center justify-between rounded-lg border px-3.5 py-2.5 text-sm transition-all duration-150 ${
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full appearance-none rounded-lg border px-3.5 py-2.5 text-sm transition-all duration-150 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 ${
             disabled
               ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400'
-              : open
-                ? 'border-indigo-400 bg-white ring-2 ring-indigo-100'
-                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-          } ${error ? 'border-red-400' : ''}`}
+              : error
+                ? 'border-red-400 bg-white text-gray-800'
+                : 'border-gray-200 bg-white text-gray-800 hover:border-gray-300'
+          }`}
         >
-          <span className={value ? 'text-gray-800' : 'text-gray-400'}>{value || placeholder}</span>
-          <ChevronDown
-            className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-          />
-        </button>
-
-        {open && (
-          <div className="absolute top-full left-0 z-50 mt-1 max-h-52 w-full overflow-auto rounded-xl border border-gray-200 bg-white py-1 shadow-xl">
-            {options.map((opt) => (
-              <button
-                key={opt}
-                type="button"
-                id={`${id}-opt-${opt.toLowerCase().replace(/\s+/g, '-')}`}
-                onClick={() => {
-                  onChange(opt);
-                  setOpen(false);
-                }}
-                className={`flex w-full items-center px-3.5 py-2 text-left text-sm transition-colors hover:bg-indigo-50 hover:text-indigo-700 ${
-                  value === opt ? 'bg-indigo-50 font-medium text-indigo-600' : 'text-gray-700'
-                }`}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-        )}
+          <option value="" disabled>
+            {placeholder}
+          </option>
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute top-1/2 right-3.5 h-4 w-4 -translate-y-1/2 text-gray-400" />
       </div>
       {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
     </div>
@@ -138,28 +96,6 @@ const FormInput = ({ label, error, id, ...props }: FormInputProps) => (
   </div>
 );
 
-interface FormTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label: string;
-  error?: string;
-}
-
-const FormTextarea = ({ label, error, id, ...props }: FormTextareaProps) => (
-  <div className="mb-4">
-    <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-gray-700">
-      {label}
-    </label>
-    <textarea
-      id={id}
-      rows={2}
-      className={`w-full resize-none rounded-lg border px-3.5 py-2.5 text-sm text-gray-800 transition-all duration-150 outline-none placeholder:text-gray-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 ${
-        error ? 'border-red-400' : 'border-gray-200 hover:border-gray-300'
-      }`}
-      {...props}
-    />
-    {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-  </div>
-);
-
 /* ─────────────────────────────────────────────
    SECTION HEADER
 ───────────────────────────────────────────── */
@@ -174,73 +110,85 @@ const SectionHeader = ({ icon, title }: { icon: React.ReactNode; title: string }
 );
 
 /* ─────────────────────────────────────────────
-   UNIT TYPE OPTIONS
-───────────────────────────────────────────── */
-
-const UNIT_TYPES = ['College', 'University', 'Institution'];
-
-/* ─────────────────────────────────────────────
    EMPTY FORM
 ───────────────────────────────────────────── */
 
 const EMPTY: AddUserFormData = {
-  college: '',
-  state: '',
-  district: '',
-  address: '',
-  unitType: '',
-  volunteerStrength: '',
-  establishedYear: '',
-  coordinatorName: '',
-  coordinatorDesignation: '',
-  coordinatorPhone: '',
-  coordinatorEmail: '',
+  organization: '',
+  name: '',
+  email: '',
+  mobile: '',
+  role_id: '',
 };
 
 /* ─────────────────────────────────────────────
    MODAL
 ───────────────────────────────────────────── */
+import { api } from '@/api/axios';
+import { Organization } from '@/services/organization.service';
 
 export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) => {
   const [form, setForm] = useState<AddUserFormData>(EMPTY);
   const [errors, setErrors] = useState<Partial<Record<keyof AddUserFormData, string>>>({});
   const [loading, setLoading] = useState(false);
 
-  const districts = form.state ? getDistricts(form.state) : [];
+  const [orgs, setOrgs] = useState<{ label: string; value: string }[]>([]);
+  const [roles, setRoles] = useState<{ label: string; value: string }[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Fetch organizations
+      api
+        .get('/organizations')
+        .then((res) => {
+          if (res.data.success) {
+            setOrgs(
+              res.data.data.map((o: Organization) => ({
+                label: `${o.orgn_name} (${o.orgn_type})`,
+                value: o._id,
+              })),
+            );
+          }
+        })
+        .catch(console.error);
+
+      // Fetch roles
+      api
+        .get('/rbac/roles')
+        .then((res) => {
+          if (res.data?.status === 'success' || res.data?.success) {
+            const filteredRoles = res.data.data.roles.filter(
+              (r: { name: string }) => r.name.toLowerCase() !== 'superadmin',
+            );
+            setRoles(
+              filteredRoles.map((r: { name: string; _id: string }) => ({
+                label: r.name,
+                value: r._id,
+              })),
+            );
+          }
+        })
+        .catch(console.error);
+    }
+  }, [isOpen]);
 
   const setField = (field: keyof AddUserFormData) => (value: string) => {
     setForm((prev) => ({
       ...prev,
       [field]: value,
-      ...(field === 'state' ? { district: '' } : {}),
     }));
     setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
   const validate = (): boolean => {
     const errs: Partial<Record<keyof AddUserFormData, string>> = {};
-    if (!form.college.trim()) errs.college = 'College / Institution name is required';
-    if (!form.state) errs.state = 'State is required';
-    if (!form.district) errs.district = 'District is required';
-    if (!form.address.trim()) errs.address = 'Full address is required';
-    if (!form.unitType) errs.unitType = 'Unit type is required';
-    if (!form.volunteerStrength.trim()) errs.volunteerStrength = 'Volunteer strength is required';
-    else if (isNaN(Number(form.volunteerStrength)) || Number(form.volunteerStrength) <= 0)
-      errs.volunteerStrength = 'Enter a valid number';
-    if (!form.establishedYear.trim()) errs.establishedYear = 'Established year is required';
-    else if (
-      isNaN(Number(form.establishedYear)) ||
-      Number(form.establishedYear) < 1900 ||
-      Number(form.establishedYear) > new Date().getFullYear()
-    )
-      errs.establishedYear = 'Enter a valid year';
-    if (!form.coordinatorName.trim()) errs.coordinatorName = 'Coordinator name is required';
-    if (!form.coordinatorDesignation.trim())
-      errs.coordinatorDesignation = 'Designation is required';
-    if (!form.coordinatorPhone.trim()) errs.coordinatorPhone = 'Phone number is required';
-    if (!form.coordinatorEmail.trim()) errs.coordinatorEmail = 'Email is required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.coordinatorEmail))
-      errs.coordinatorEmail = 'Invalid email address';
+    if (!form.organization) errs.organization = 'Organization is required';
+    if (!form.name.trim()) errs.name = 'Full name is required';
+    if (!form.mobile.trim()) errs.mobile = 'Mobile number is required';
+    else if (!/^[0-9]{10}$/.test(form.mobile)) errs.mobile = 'Invalid mobile number';
+    if (!form.email.trim()) errs.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Invalid email address';
+    if (!form.role_id) errs.role_id = 'Role is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -249,8 +197,7 @@ export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) =
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    onSubmit(form);
+    await onSubmit(form);
     setLoading(false);
     setForm(EMPTY);
     setErrors({});
@@ -305,132 +252,69 @@ export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) =
 
         {/* Form */}
         <form onSubmit={handleSubmit} noValidate className="px-6 py-5">
-          {/* ── Unit / Institution Details ── */}
+          {/* ── Organization Selection ── */}
           <SectionHeader
             icon={<Building2 className="h-3.5 w-3.5" />}
-            title="College / Institution Details"
+            title="Organization / Program Unit"
           />
 
-          <FormInput
-            id="add-user-college"
-            label="College / Institution *"
-            placeholder="e.g. COEP Technological University"
-            value={form.college}
-            onChange={(e) => setField('college')(e.target.value)}
-            error={errors.college}
+          <FormSelectObject
+            id="add-user-organization"
+            label="Organization *"
+            value={form.organization}
+            onChange={setField('organization')}
+            options={orgs}
+            placeholder="Select an organization"
+            error={errors.organization}
           />
 
-          {/* State + District side by side */}
-          <div className="grid grid-cols-2 gap-3">
-            <FormSelect
-              id="add-user-state"
-              label="State *"
-              value={form.state}
-              onChange={setField('state')}
-              options={STATES}
-              placeholder="Select state"
-              error={errors.state}
-            />
-            <FormSelect
-              id="add-user-district"
-              label="District *"
-              value={form.district}
-              onChange={setField('district')}
-              options={districts}
-              placeholder={form.state ? 'Select district' : 'Select state first'}
-              disabled={!form.state}
-              error={errors.district}
-            />
-          </div>
+          {/* ── User Details (Only shown if org selected) ── */}
+          {form.organization && (
+            <div className="animate-in fade-in slide-in-from-top-2 mt-4">
+              <SectionHeader icon={<User className="h-3.5 w-3.5" />} title="User Details" />
 
-          <FormTextarea
-            id="add-user-address"
-            label="Full Address *"
-            placeholder="e.g. Wellesley Road, Shivajinagar, Pune, Maharashtra 411005"
-            value={form.address}
-            onChange={(e) => setField('address')(e.target.value)}
-            error={errors.address}
-          />
+              <FormInput
+                id="add-user-name"
+                label="Full Name *"
+                placeholder="e.g. Dr. Rajesh Kulkarni"
+                value={form.name}
+                onChange={(e) => setField('name')(e.target.value)}
+                error={errors.name}
+              />
 
-          <FormSelect
-            id="add-user-unit-type"
-            label="Unit Type *"
-            value={form.unitType}
-            onChange={setField('unitType')}
-            options={UNIT_TYPES}
-            placeholder="Select unit type"
-            error={errors.unitType}
-          />
+              {/* Phone + Email side by side */}
+              <div className="grid grid-cols-2 gap-3">
+                <FormInput
+                  id="add-user-mobile"
+                  label="Mobile Number *"
+                  type="tel"
+                  placeholder="9422011234"
+                  value={form.mobile}
+                  onChange={(e) => setField('mobile')(e.target.value)}
+                  error={errors.mobile}
+                />
+                <FormInput
+                  id="add-user-email"
+                  label="Email ID *"
+                  type="email"
+                  placeholder="user@college.ac.in"
+                  value={form.email}
+                  onChange={(e) => setField('email')(e.target.value)}
+                  error={errors.email}
+                />
+              </div>
 
-          {/* Strength + Year side by side */}
-          <div className="grid grid-cols-2 gap-3">
-            <FormInput
-              id="add-user-strength"
-              label="Volunteer Strength *"
-              type="number"
-              min="1"
-              placeholder="e.g. 120"
-              value={form.volunteerStrength}
-              onChange={(e) => setField('volunteerStrength')(e.target.value)}
-              error={errors.volunteerStrength}
-            />
-            <FormInput
-              id="add-user-year"
-              label="Established Year *"
-              type="number"
-              min="1900"
-              max={new Date().getFullYear()}
-              placeholder="e.g. 1972"
-              value={form.establishedYear}
-              onChange={(e) => setField('establishedYear')(e.target.value)}
-              error={errors.establishedYear}
-            />
-          </div>
-
-          {/* ── Coordinator Details ── */}
-          <div className="mt-2">
-            <SectionHeader icon={<User className="h-3.5 w-3.5" />} title="Coordinator Details" />
-          </div>
-
-          <FormInput
-            id="add-user-coord-name"
-            label="Full Name *"
-            placeholder="e.g. Dr. Rajesh Kulkarni"
-            value={form.coordinatorName}
-            onChange={(e) => setField('coordinatorName')(e.target.value)}
-            error={errors.coordinatorName}
-          />
-
-          <FormInput
-            id="add-user-coord-designation"
-            label="Designation *"
-            placeholder="e.g. Programme Officer"
-            value={form.coordinatorDesignation}
-            onChange={(e) => setField('coordinatorDesignation')(e.target.value)}
-            error={errors.coordinatorDesignation}
-          />
-
-          {/* Phone + Email side by side */}
-          <div className="grid grid-cols-2 gap-3">
-            <FormInput
-              id="add-user-coord-phone"
-              label="Phone Number *"
-              type="tel"
-              placeholder="+91 94220 11234"
-              value={form.coordinatorPhone}
-              onChange={(e) => setField('coordinatorPhone')(e.target.value)}
-              error={errors.coordinatorPhone}
-            />
-            <FormInput
-              id="add-user-coord-email"
-              label="Email ID *"
-              type="email"
-              placeholder="coordinator@college.ac.in"
-              value={form.coordinatorEmail}
-              onChange={(e) => setField('coordinatorEmail')(e.target.value)}
-              error={errors.coordinatorEmail}
-            />
-          </div>
+              <FormSelectObject
+                id="add-user-role"
+                label="Role *"
+                value={form.role_id}
+                onChange={setField('role_id')}
+                options={roles}
+                placeholder="Select a role"
+                error={errors.role_id}
+              />
+            </div>
+          )}
 
           {/* Actions */}
           <div className="mt-4 flex justify-end gap-3 border-t border-gray-100 pt-4">

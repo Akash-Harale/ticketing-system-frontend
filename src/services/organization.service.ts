@@ -42,7 +42,7 @@ export interface Member {
   email: string;
   mobile: string;
   role_id?: { _id: string; name: string };
-  organization?: string;
+  organization?: Organization;
   active: boolean;
   joinedAt?: string;
 }
@@ -95,7 +95,13 @@ export const organizationService = {
   },
   /** Fetch coordinator (member) for a given org _id */
   getCoordinatorByOrg: async (orgId: string) => {
-    const { data } = await api.get<ApiResponse<Organization[]>>(`/members?organization=${orgId}`);
-    return (data.data as unknown as Member[])[0] ?? null;
+    const { data } = await api.get<ApiResponse<Member[]>>(`/members?organization=${orgId}`);
+    return data.data[0] ?? null;
+  },
+
+  /** Fetch all members */
+  getAllMembers: async () => {
+    const { data } = await api.get<ApiResponse<Member[]>>('/members');
+    return data;
   },
 };
