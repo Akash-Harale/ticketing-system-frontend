@@ -18,15 +18,14 @@ import {
   PMU_USERS,
   PROGRAM_UNIT_USERS,
   UserItem,
-  getProgramUnitStates,
-  getProgramUnitDistricts,
-  getProgramUnitUsers,
   ProgramUnitUser,
 } from '../features/userManagement/data/userManagementData';
+import { organizationService, Member } from '../services/organization.service';
 import { UserDetailDrawer } from '../features/userManagement/components/UserDetailDrawer';
 import { AddUserModal, AddUserFormData } from '../features/userManagement/components/AddUserModal';
 import { MultiSelectDropdown, MultiSelectOption } from '../components/ui/MultiSelectDropdown';
 import { StateCard } from '../features/programUnit/components/StateCard';
+import { api } from '../api/axios';
 
 /* ─────────────────────────────────────────────
    USER CARD
@@ -440,26 +439,35 @@ const EmptyUsers = ({ districts }: { districts: string[] }) => (
    PROGRAM UNIT USERS SECTION INNER
 ───────────────────────────────────────────── */
 
-const ProgramUnitUsersContent = ({ onUserClick }: { onUserClick: (user: UserItem) => void }) => {
-  const states = useMemo(() => getProgramUnitStates(), []);
+const ProgramUnitUsersContent = ({
+  users: apiUsers,
+  onUserClick,
+}: {
+  users: ProgramUnitUser[];
+  onUserClick: (user: UserItem) => void;
+}) => {
+  const states = useMemo(() => {
+    const s = new Set(apiUsers.map((u) => u.state));
+    return [...s].sort();
+  }, [apiUsers]);
+
   const [selectedState, setSelectedState] = useState<string | null>(null);
   const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
 
-  const districtOptions: MultiSelectOption[] = useMemo(
-    () =>
-      selectedState
-        ? getProgramUnitDistricts(selectedState).map((d) => ({ value: d, label: d }))
-        : [],
-    [selectedState],
-  );
+  const districtOptions: MultiSelectOption[] = useMemo(() => {
+    if (!selectedState) return [];
+    const d = new Set(apiUsers.filter((u) => u.state === selectedState).map((u) => u.district));
+    return [...d].sort().map((dist) => ({ value: dist, label: dist }));
+  }, [selectedState, apiUsers]);
 
-  const users = useMemo(() => {
+  const displayedUsers = useMemo(() => {
     if (!selectedState || selectedDistricts.length === 0) return [];
-    return getProgramUnitUsers(selectedState, selectedDistricts);
-  }, [selectedState, selectedDistricts]);
+    return apiUsers.filter(
+      (u) => u.state === selectedState && selectedDistricts.includes(u.district),
+    );
+  }, [selectedState, selectedDistricts, apiUsers]);
 
-  const getUserCountByState = (state: string) =>
-    getProgramUnitUsers(state, getProgramUnitDistricts(state)).length;
+  const getUserCountByState = (state: string) => apiUsers.filter((u) => u.state === state).length;
 
   const handleStateClick = (state: string) => {
     if (selectedState === state) {
@@ -535,15 +543,15 @@ const ProgramUnitUsersContent = ({ onUserClick }: { onUserClick: (user: UserItem
                         : ` — ${selectedDistricts.length} districts`}
                     </p>
                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-600">
-                      {users.length}
+                      {displayedUsers.length}
                     </span>
                   </div>
 
-                  {users.length === 0 ? (
+                  {displayedUsers.length === 0 ? (
                     <EmptyUsers districts={selectedDistricts} />
                   ) : (
                     <div className="flex flex-col gap-2">
-                      {users.map((u) => (
+                      {displayedUsers.map((u) => (
                         <PuUserCard key={u.id} user={u} onClick={() => onUserClick(u)} />
                       ))}
                     </div>
@@ -570,6 +578,121 @@ export const Users = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
 
+  const [puUsers, setPuUsers] = useState<ProgramUnitUser[]>([]);
+  const [nssUsers, setNssUsers] = useState<UserItem[]>([]);
+  const [pmuUsers, setPmuUsers] = useState<UserItem[]>([]);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await organizationService.getAllMembers();
+      const apiMembers = response.data || [];
+
+      const mappedPuUsers: ProgramUnitUser[] = apiMembers
+        .filter((m: Member) => m.organization?.orgn_type === 'PU')
+        .map((m: Member) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const org = m.organization as any;
+          return {
+            id: m._id,
+            name: m.name,
+            email: m.email,
+            designation: m.role_id?.name || 'Programme Officer',
+            phone: m.mobile,
+            department: org?.orgn_name || 'N/A',
+            role: m.role_id?.name || 'Programme Officer',
+            state: org?.orgn_state?.state_name || 'Unknown State',
+            district: org?.orgn_district?.district_name || 'Unknown District',
+            unitName: org?.orgn_name || 'Unknown Unit',
+            gender: 'Other',
+            joinedDate: m.joinedAt
+              ? new Date(m.joinedAt).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : 'Unknown',
+            status: m.active ? 'Active' : 'Inactive',
+            avatarInitials: m.name.substring(0, 2).toUpperCase(),
+            avatarColor: 'from-emerald-500 to-teal-600',
+          } as ProgramUnitUser;
+        });
+
+      const mappedNssUsers: UserItem[] = apiMembers
+        .filter((m: Member) => {
+          const roleStr = m.role_id?.name;
+          console.log('roleStr', roleStr);
+          return roleStr === 'NSS_Admin' || roleStr === 'NSS_User';
+        })
+        .map((m: Member) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const org = m.organization as any;
+          return {
+            id: m._id,
+            name: m.name,
+            email: m.email,
+            designation: m.role_id?.name || 'Staff',
+            phone: m.mobile,
+            department: org?.orgn_name || 'N/A',
+            role: m.role_id?.name || 'User',
+            gender: 'Other',
+            joinedDate: m.joinedAt
+              ? new Date(m.joinedAt).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : 'Unknown',
+            status: m.active ? 'Active' : 'Inactive',
+            avatarInitials: m.name.substring(0, 2).toUpperCase(),
+            avatarColor: 'from-indigo-500 to-blue-600',
+          } as UserItem;
+        });
+
+      const mappedPmuUsers: UserItem[] = apiMembers
+        .filter((m: Member) => {
+          const roleStr = m.role_id?.name || m.role_id?.name;
+          return roleStr === 'PMU_Admin' || roleStr === 'PMU_User';
+        })
+        .map((m: Member) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const org = m.organization as any;
+          return {
+            id: m._id,
+            name: m.name,
+            email: m.email,
+            designation: m.role_id?.name || 'Staff',
+            phone: m.mobile,
+            department: org?.orgn_name || 'N/A',
+            role: m.role_id?.name || 'User',
+            gender: 'Other',
+            joinedDate: m.joinedAt
+              ? new Date(m.joinedAt).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : 'Unknown',
+            status: m.active ? 'Active' : 'Inactive',
+            avatarInitials: m.name.substring(0, 2).toUpperCase(),
+            avatarColor: 'from-violet-500 to-purple-600',
+          } as UserItem;
+        });
+
+      setPuUsers(mappedPuUsers);
+      setNssUsers(mappedNssUsers);
+      setPmuUsers(mappedPmuUsers);
+    } catch (error) {
+      console.error('Failed to fetch users', error);
+      setPuUsers(PROGRAM_UNIT_USERS); // Fallback to static on error
+      setNssUsers(NSS_USERS);
+      setPmuUsers(PMU_USERS);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
   // Focus search input when opened
   useEffect(() => {
     if (searchOpen) {
@@ -590,21 +713,23 @@ export const Users = () => {
       (u.department ?? '').toLowerCase().includes(q) ||
       (u.role ?? '').toLowerCase().includes(q);
 
-    const nssHits: SearchResult[] = NSS_USERS.filter(matches).map((u) => ({
+    const nssHits: SearchResult[] = nssUsers.filter(matches).map((u) => ({
       user: u,
       source: 'NSS' as const,
     }));
-    const pmuHits: SearchResult[] = PMU_USERS.filter(matches).map((u) => ({
+    const pmuHits: SearchResult[] = pmuUsers.filter(matches).map((u) => ({
       user: u,
       source: 'PMU' as const,
     }));
-    const puHits: SearchResult[] = PROGRAM_UNIT_USERS.filter(
-      (u) =>
-        matches(u) ||
-        (u.unitName ?? '').toLowerCase().includes(q) ||
-        (u.state ?? '').toLowerCase().includes(q) ||
-        (u.district ?? '').toLowerCase().includes(q),
-    ).map((u) => ({ user: u, source: 'Program Unit' as const }));
+    const puHits: SearchResult[] = puUsers
+      .filter(
+        (u) =>
+          matches(u) ||
+          (u.unitName ?? '').toLowerCase().includes(q) ||
+          (u.state ?? '').toLowerCase().includes(q) ||
+          (u.district ?? '').toLowerCase().includes(q),
+      )
+      .map((u) => ({ user: u, source: 'Program Unit' as const }));
 
     return [...nssHits, ...pmuHits, ...puHits];
   }, [q]);
@@ -613,9 +738,15 @@ export const Users = () => {
     setOpenAccordion((prev) => (prev === id ? null : id));
   };
 
-  const handleAddUser = (data: AddUserFormData) => {
-    console.log('New user:', data);
-    setShowAddModal(false);
+  const handleAddUser = async (data: AddUserFormData) => {
+    try {
+      await api.post('/members', data);
+      setShowAddModal(false);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error adding user', error);
+      alert('Failed to add user');
+    }
   };
 
   return (
@@ -686,7 +817,7 @@ export const Users = () => {
               <p className="text-[10px] font-semibold tracking-wide text-indigo-400 uppercase">
                 NSS Users
               </p>
-              <p className="text-[14px] font-bold text-indigo-700">{NSS_USERS.length}</p>
+              <p className="text-[14px] font-bold text-indigo-700">{nssUsers.length}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 rounded-xl bg-violet-50 px-4 py-2.5">
@@ -697,7 +828,7 @@ export const Users = () => {
               <p className="text-[10px] font-semibold tracking-wide text-violet-400 uppercase">
                 PMU Users
               </p>
-              <p className="text-[14px] font-bold text-violet-700">{PMU_USERS.length}</p>
+              <p className="text-[14px] font-bold text-violet-700">{pmuUsers.length}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5">
@@ -709,7 +840,7 @@ export const Users = () => {
                 Program Unit Users
               </p>
               <p className="text-[14px] font-bold text-emerald-700">
-                {getProgramUnitStates().length} states
+                {new Set(puUsers.map((u) => u.state)).size} states
               </p>
             </div>
           </div>
@@ -731,13 +862,13 @@ export const Users = () => {
             icon={<Shield className="h-5 w-5" />}
             title="NSS Users"
             subtitle="National Service Scheme headquarters and administrative staff"
-            count={NSS_USERS.length}
+            count={nssUsers.length}
             isOpen={openAccordion === 'nss'}
             onToggle={() => toggleAccordion('nss')}
             accentColor="indigo"
           >
             <div className="flex flex-col gap-2">
-              {NSS_USERS.map((user) => (
+              {nssUsers.map((user) => (
                 <UserCard key={user.id} user={user} onClick={() => setSelectedUser(user)} />
               ))}
             </div>
@@ -749,13 +880,13 @@ export const Users = () => {
             icon={<UsersIcon className="h-5 w-5" />}
             title="PMU Users"
             subtitle="Programme Management Unit members and operational staff"
-            count={PMU_USERS.length}
+            count={pmuUsers.length}
             isOpen={openAccordion === 'pmu'}
             onToggle={() => toggleAccordion('pmu')}
             accentColor="violet"
           >
             <div className="flex flex-col gap-2">
-              {PMU_USERS.map((user) => (
+              {pmuUsers.map((user) => (
                 <UserCard key={user.id} user={user} onClick={() => setSelectedUser(user)} />
               ))}
             </div>
@@ -767,12 +898,12 @@ export const Users = () => {
             icon={<Building2 className="h-5 w-5" />}
             title="Program Unit Users"
             subtitle="State-wise NSS programme officers and coordinators"
-            count={getProgramUnitStates().length}
+            count={new Set(puUsers.map((u) => u.state)).size}
             isOpen={openAccordion === 'program-unit'}
             onToggle={() => toggleAccordion('program-unit')}
             accentColor="emerald"
           >
-            <ProgramUnitUsersContent onUserClick={setSelectedUser} />
+            <ProgramUnitUsersContent users={puUsers} onUserClick={setSelectedUser} />
           </AccordionSection>
         </div>
       )}
