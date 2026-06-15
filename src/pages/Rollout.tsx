@@ -12,25 +12,26 @@ import {
   CheckCircle2,
   Clock,
   FileEdit,
+  Loader2,
 } from 'lucide-react';
+import { TemplateModal } from '../features/rollout/components/TemplateModal';
+import { AddRolloutModal } from '../features/rollout/components/AddRolloutModal';
 import {
-  ROLLOUTS,
-  TEMPLATES,
-  RolloutItem,
+  rolloutService,
+  RolloutCampaign,
   StateEntry,
   DistrictEntry,
-  TemplateItem,
-} from '../features/rollout/data/rolloutData';
-import { TemplateModal, Task } from '../features/rollout/components/TemplateModal';
-import { AddRolloutModal } from '../features/rollout/components/AddRolloutModal';
+  InstituteEntry,
+} from '@/services/rollout.service';
 
 /* ── STATUS BADGE ── */
-const STATUS = {
+const STATUS: Record<string, string> = {
   Active: 'bg-emerald-100 text-emerald-700',
   Completed: 'bg-indigo-100 text-indigo-700',
   Draft: 'bg-amber-100 text-amber-700',
 };
-const STATUS_ICON = {
+
+const STATUS_ICON: Record<string, React.ReactNode> = {
   Active: <CheckCircle2 className="h-3 w-3" />,
   Completed: <CheckCircle2 className="h-3 w-3" />,
   Draft: <FileEdit className="h-3 w-3" />,
@@ -149,7 +150,7 @@ const RolloutAccordion = ({
   isOpen,
   onToggle,
 }: {
-  rollout: RolloutItem;
+  rollout: RolloutCampaign;
   isOpen: boolean;
   onToggle: () => void;
 }) => (
@@ -174,9 +175,9 @@ const RolloutAccordion = ({
             {rollout.title}
           </p>
           <span
-            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS[rollout.status]}`}
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS[rollout.status] || 'bg-indigo-100 text-indigo-700'}`}
           >
-            {STATUS_ICON[rollout.status]}
+            {STATUS_ICON[rollout.status] || <CheckCircle2 className="h-3 w-3" />}
             {rollout.status}
           </span>
         </div>
@@ -227,17 +228,37 @@ const RolloutAccordion = ({
   </div>
 );
 
-/* AddRolloutModal is imported from its own file */
-
 /* ── MAIN PAGE ── */
 export const Rollout = () => {
   const [openId, setOpenId] = useState<string | null>(null);
   const [showTemplate, setShowTemplate] = useState(false);
   const [showRollout, setShowRollout] = useState(false);
-  const [templates, setTemplates] = useState<TemplateItem[]>(TEMPLATES);
+  const [rollouts, setRollouts] = useState<RolloutCampaign[]>([]);
+  const [templatesCount, setTemplatesCount] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const fetchRolloutsAndTemplates = async () => {
+    setLoading(true);
+    try {
+      const [rData, tData] = await Promise.all([
+        rolloutService.getRollouts(),
+        rolloutService.getMasterTemplates(),
+      ]);
+      setRollouts(rData);
+      setTemplatesCount(tData.length > 0 ? 1 : 0);
+    } catch (err) {
+      console.error('Failed to load rollouts/templates', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRolloutsAndTemplates();
+  }, []);
 
   useEffect(() => {
     if (searchOpen) setTimeout(() => searchRef.current?.focus(), 50);
@@ -248,38 +269,33 @@ export const Rollout = () => {
   const filtered = useMemo(
     () =>
       q
-        ? ROLLOUTS.filter(
+        ? rollouts.filter(
             (r) =>
               r.title.toLowerCase().includes(q) ||
               r.templateName.toLowerCase().includes(q) ||
               r.status.toLowerCase().includes(q) ||
-              r.states.some(
-                (s) =>
+              (r.states as StateEntry[]).some(
+                (s: StateEntry) =>
                   s.name.toLowerCase().includes(q) ||
                   s.districts.some(
-                    (d) =>
+                    (d: DistrictEntry) =>
                       d.name.toLowerCase().includes(q) ||
-                      d.institutes.some((i) => i.name.toLowerCase().includes(q)),
+                      d.institutes.some((i: InstituteEntry) => i.name.toLowerCase().includes(q)),
                   ),
               ),
           )
-        : ROLLOUTS,
-    [q],
+        : rollouts,
+    [q, rollouts],
   );
 
-  const handleTemplateSave = (name: string, tasks: Task[]) => {
-    const newTpl: TemplateItem = {
-      id: `tpl-${Date.now()}`,
-      name,
-      createdDate: new Date().toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }),
-      tasks: tasks.map((t) => ({ id: t.id, text: t.text })),
-    };
-    setTemplates((prev) => [...prev, newTpl]);
+  const handleTemplateSave = () => {
+    fetchRolloutsAndTemplates();
     setShowTemplate(false);
+  };
+
+  const handleRolloutSubmit = () => {
+    fetchRolloutsAndTemplates();
+    setShowRollout(false);
   };
 
   return (
@@ -353,14 +369,14 @@ export const Rollout = () => {
             <p className="text-[10px] font-semibold tracking-wide text-indigo-400 uppercase">
               Total Rollouts
             </p>
-            <p className="ml-1 text-[14px] font-bold text-indigo-700">{ROLLOUTS.length}</p>
+            <p className="ml-1 text-[14px] font-bold text-indigo-700">{rollouts.length}</p>
           </div>
           <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5">
             <p className="text-[10px] font-semibold tracking-wide text-emerald-400 uppercase">
               Active
             </p>
             <p className="ml-1 text-[14px] font-bold text-emerald-700">
-              {ROLLOUTS.filter((r) => r.status === 'Active').length}
+              {rollouts.filter((r) => r.status === 'Active').length}
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-xl bg-violet-50 px-4 py-2.5">
@@ -368,20 +384,24 @@ export const Rollout = () => {
               Completed
             </p>
             <p className="ml-1 text-[14px] font-bold text-violet-700">
-              {ROLLOUTS.filter((r) => r.status === 'Completed').length}
+              {rollouts.filter((r) => r.status === 'Completed').length}
             </p>
           </div>
           <div className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-2.5">
             <p className="text-[10px] font-semibold tracking-wide text-amber-400 uppercase">
               Templates
             </p>
-            <p className="ml-1 text-[14px] font-bold text-amber-700">{templates.length}</p>
+            <p className="ml-1 text-[14px] font-bold text-amber-700">{templatesCount}</p>
           </div>
         </div>
       </div>
 
       {/* Rollout list */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-2xl bg-white py-16 text-center shadow-sm">
           <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gray-100">
             <Search className="h-9 w-9 text-gray-300" />
@@ -392,7 +412,14 @@ export const Rollout = () => {
           <div>
             <p className="text-[15px] font-semibold text-gray-800">No rollouts found</p>
             <p className="mt-1 text-[13px] text-gray-400">
-              No results for <span className="font-semibold text-gray-600">"{searchQuery}"</span>
+              {searchQuery ? (
+                <>
+                  No results for{' '}
+                  <span className="font-semibold text-gray-600">"{searchQuery}"</span>
+                </>
+              ) : (
+                'Create a new rollout campaign by clicking the button above.'
+              )}
             </p>
           </div>
         </div>
@@ -417,7 +444,7 @@ export const Rollout = () => {
       <AddRolloutModal
         isOpen={showRollout}
         onClose={() => setShowRollout(false)}
-        onSubmit={() => setShowRollout(false)}
+        onSubmit={handleRolloutSubmit}
       />
     </div>
   );
