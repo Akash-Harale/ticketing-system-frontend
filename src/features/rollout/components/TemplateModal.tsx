@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Plus, GripVertical, Loader2, FileText, ChevronDown } from 'lucide-react';
+import { rolloutService } from '@/services/rollout.service';
 
 export type Priority = 'High' | 'Medium' | 'Low';
 
@@ -36,7 +37,7 @@ const PrioritySelect = ({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const h = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
@@ -81,10 +82,42 @@ const PrioritySelect = ({
 export const TemplateModal = ({ isOpen, onClose, onSubmit }: Props) => {
   const [name, setName] = useState('');
   const [tasks, setTasks] = useState<Task[]>([EMPTY_TASK()]);
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [nameErr, setNameErr] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const dragIdx = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setLoading(true);
+      rolloutService
+        .getMasterTemplates()
+        .then((data) => {
+          if (data && data.length > 0) {
+            setTasks(
+              data.map((t) => ({
+                id: t._id || t.task_id,
+                text: t.task_name,
+                description: t.task_desc || '',
+                priority: t.priority,
+              })),
+            );
+          } else {
+            setTasks([EMPTY_TASK()]);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to fetch templates', err);
+          setTasks([EMPTY_TASK()]);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+      setName('Master Template');
+      setDeletedIds([]);
+    }
+  }, [isOpen]);
 
   const toggleExpand = (id: string) =>
     setExpanded((prev) => {
@@ -101,7 +134,15 @@ export const TemplateModal = ({ isOpen, onClose, onSubmit }: Props) => {
     const t = EMPTY_TASK();
     setTasks((ts) => [...ts, t]);
   };
-  const removeTask = (id: string) => setTasks((ts) => ts.filter((x) => x.id !== id));
+
+  const removeTask = (id: string) => {
+    // If it's a mongo ID, track it for deletion on save
+    if (/^[0-9a-fA-F]{24}$/.test(id)) {
+      setDeletedIds((prev) => [...prev, id]);
+    }
+    setTasks((ts) => ts.filter((x) => x.id !== id));
+  };
+
   const updateTask = (id: string, patch: Partial<Task>) =>
     setTasks((ts) => ts.map((x) => (x.id === id ? { ...x, ...patch } : x)));
 
@@ -129,14 +170,56 @@ export const TemplateModal = ({ isOpen, onClose, onSubmit }: Props) => {
     }
     const filled = tasks.filter((t) => t.text.trim());
     if (filled.length === 0) return;
+
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    onSubmit(name.trim(), filled);
-    setLoading(false);
-    setName('');
-    setTasks([EMPTY_TASK()]);
-    setNameErr('');
-    setExpanded(new Set());
+    try {
+      // 1. Delete tasks removed by user
+      for (const id of deletedIds) {
+        await rolloutService.deleteMasterTemplate(id);
+      }
+      setDeletedIds([]);
+
+      // 2. Create or Update tasks
+      const updatedTasks: Task[] = [];
+      for (let i = 0; i < filled.length; i++) {
+        const t = filled[i];
+        const payload = {
+          task_id: `MT${String(i + 1).padStart(3, '0')}`,
+          task_name: t.text,
+          task_desc: t.description || '',
+          priority: t.priority,
+        };
+
+        const isMongoId = /^[0-9a-fA-F]{24}$/.test(t.id);
+        if (isMongoId) {
+          const res = await rolloutService.updateMasterTemplate(t.id, payload);
+          updatedTasks.push({
+            id: res._id || res.task_id,
+            text: res.task_name,
+            description: res.task_desc || '',
+            priority: res.priority,
+          });
+        } else {
+          const res = await rolloutService.createMasterTemplate(payload);
+          updatedTasks.push({
+            id: res._id || res.task_id,
+            text: res.task_name,
+            description: res.task_desc || '',
+            priority: res.priority,
+          });
+        }
+      }
+
+      onSubmit(name.trim(), updatedTasks);
+      setName('');
+      setTasks([EMPTY_TASK()]);
+      setNameErr('');
+      setExpanded(new Set());
+    } catch (err) {
+      console.error('Failed to save template tasks', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClose = () => {
@@ -144,6 +227,7 @@ export const TemplateModal = ({ isOpen, onClose, onSubmit }: Props) => {
     setTasks([EMPTY_TASK()]);
     setNameErr('');
     setExpanded(new Set());
+    setDeletedIds([]);
     onClose();
   };
 
@@ -222,7 +306,7 @@ export const TemplateModal = ({ isOpen, onClose, onSubmit }: Props) => {
                   onDragEnd={onDragEnd}
                   className={`overflow-hidden rounded-xl border transition-all duration-300 ${isExp ? 'border-indigo-200 bg-indigo-50/40 shadow-sm shadow-indigo-100' : 'border-gray-200 bg-white hover:border-gray-300'} cursor-grab active:cursor-grabbing`}
                 >
-                  {/* Task header row — mirrors FAQ accordion */}
+                  {/* Task header row */}
                   <div className="flex w-full items-center gap-3 px-4 py-3.5">
                     {/* Drag handle */}
                     <GripVertical className="h-4 w-4 flex-shrink-0 text-gray-300 transition hover:text-indigo-400" />
@@ -271,7 +355,7 @@ export const TemplateModal = ({ isOpen, onClose, onSubmit }: Props) => {
                     )}
                   </div>
 
-                  {/* Expanded: description — mirrors FAQ answer panel */}
+                  {/* Expanded: description */}
                   <div
                     className={`overflow-hidden transition-all duration-300 ease-in-out ${isExp ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}
                   >

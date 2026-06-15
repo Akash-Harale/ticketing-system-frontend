@@ -1,17 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { X, Send, Loader2, MapPin, Building2, CheckCircle2, ChevronDown } from 'lucide-react';
-import { PROGRAM_UNIT_USERS } from '../../userManagement/data/userManagementData';
+import { locationService, State, District } from '@/services/location.service';
+import { organizationService, Organization } from '@/services/organization.service';
+import { rolloutService } from '@/services/rollout.service';
 
-/* ── All unique states from program unit data ── */
-const ALL_STATES = [...new Set(PROGRAM_UNIT_USERS.map((u) => u.state))].sort();
+/* ── Helpers to get state/district name ── */
+const getStateName = (org: Organization): string => {
+  if (!org.orgn_state) return '';
+  return typeof org.orgn_state === 'object' ? org.orgn_state.state_name : '';
+};
 
-const getDistricts = (states: string[]) =>
-  [
-    ...new Set(PROGRAM_UNIT_USERS.filter((u) => states.includes(u.state)).map((u) => u.district)),
-  ].sort();
-
-const getUnits = (states: string[], districts: string[]) =>
-  PROGRAM_UNIT_USERS.filter((u) => states.includes(u.state) && districts.includes(u.district));
+const getDistrictName = (org: Organization): string => {
+  if (!org.orgn_district) return '';
+  return typeof org.orgn_district === 'object' ? org.orgn_district.district_name : '';
+};
 
 /* ── Multi-select chip component ── */
 interface ChipSelectProps {
@@ -32,6 +34,18 @@ const ChipSelect = ({
   disabled,
 }: ChipSelectProps) => {
   const [open, setOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
   const toggle = (v: string) => {
     onChange(selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
   };
@@ -39,7 +53,7 @@ const ChipSelect = ({
   const toggleAll = () => onChange(allSelected ? [] : [...options]);
 
   return (
-    <div className="mb-4">
+    <div ref={ref} className="relative mb-4">
       <label className="mb-1.5 block text-sm font-medium text-gray-700">{label}</label>
 
       {/* Selected chips */}
@@ -86,7 +100,7 @@ const ChipSelect = ({
 
       {/* Options panel */}
       {open && (
-        <div className="mt-1 max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
+        <div className="absolute right-0 left-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
           {/* Select all */}
           <button
             type="button"
@@ -127,8 +141,7 @@ const ChipSelect = ({
 
 /* ── Unit type helpers ── */
 const unitTypeBadge = (role: string) => {
-  if (role.includes('Director') || role.includes('Admin')) return 'bg-indigo-100 text-indigo-700';
-  if (role.includes('Coordinator')) return 'bg-violet-100 text-violet-700';
+  if (role === 'PU') return 'bg-indigo-100 text-indigo-700';
   return 'bg-emerald-100 text-emerald-700';
 };
 
@@ -144,16 +157,71 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
   const [title, setTitle] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const districtOptions = useMemo(() => getDistricts(selectedStates), [selectedStates]);
-  const units = useMemo(
-    () => (selectedDistricts.length > 0 ? getUnits(selectedStates, selectedDistricts) : []),
-    [selectedStates, selectedDistricts],
-  );
+  const [dbStates, setDbStates] = useState<State[]>([]);
+  const [allDistricts, setAllDistricts] = useState<District[]>([]);
+  const [allOrgs, setAllOrgs] = useState<Organization[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      locationService
+        .getStates()
+        .then(setDbStates)
+        .catch(() => {});
+      organizationService
+        .getAll()
+        .then((res) => {
+          const pus = (res.data || []).filter((o) => o.orgn_type === 'PU');
+          setAllOrgs(pus);
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (selectedStates.length === 0) {
+      setAllDistricts([]);
+      return;
+    }
+    const selectedStateIds = selectedStates
+      .map((name) => dbStates.find((s) => s.state_name === name)?._id)
+      .filter(Boolean) as string[];
+
+    Promise.all(selectedStateIds.map((id) => locationService.getDistrictsByState(id)))
+      .then((results) => {
+        setAllDistricts(results.flat());
+      })
+      .catch(() => {});
+  }, [selectedStates, dbStates]);
+
+  const stateOptions = useMemo(() => dbStates.map((s) => s.state_name).sort(), [dbStates]);
+
+  const districtOptions = useMemo(() => {
+    return [...new Set(allDistricts.map((d) => d.district_name))].sort();
+  }, [allDistricts]);
+
+  const units = useMemo(() => {
+    if (selectedDistricts.length === 0) return [];
+    return allOrgs
+      .filter((org) => {
+        const stateName = getStateName(org);
+        const districtName = getDistrictName(org);
+        return selectedStates.includes(stateName) && selectedDistricts.includes(districtName);
+      })
+      .map((org) => ({
+        id: org._id,
+        name: org.orgn_name,
+        unitName: org.orgn_id,
+        role: org.orgn_type,
+        district: getDistrictName(org),
+        avatarInitials: org.orgn_name.slice(0, 2).toUpperCase(),
+        avatarColor: 'from-blue-500 to-indigo-500',
+      }));
+  }, [selectedStates, selectedDistricts, allOrgs]);
 
   const handleStateChange = (states: string[]) => {
     setSelectedStates(states);
     // drop districts that no longer belong to selected states
-    const validDistricts = getDistricts(states);
+    const validDistricts = [...new Set(allDistricts.map((d) => d.district_name))];
     setSelectedDistricts((prev) => prev.filter((d) => validDistricts.includes(d)));
   };
 
@@ -161,10 +229,19 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
     e.preventDefault();
     if (!title.trim() || selectedStates.length === 0 || selectedDistricts.length === 0) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    onSubmit();
-    setLoading(false);
-    reset();
+    try {
+      await rolloutService.createRollout({
+        title: title.trim(),
+        states: selectedStates,
+        districts: selectedDistricts,
+      });
+      onSubmit();
+      reset();
+    } catch (err) {
+      console.error('Failed to broadcast rollout', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const reset = () => {
@@ -227,7 +304,7 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
           {/* States multi-select */}
           <ChipSelect
             label="Select States *"
-            options={ALL_STATES}
+            options={stateOptions}
             selected={selectedStates}
             onChange={handleStateChange}
             placeholder="Choose states…"
