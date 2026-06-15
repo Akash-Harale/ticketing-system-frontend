@@ -1,16 +1,14 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/auth/useAuth';
 
 export const ProfileMenu = () => {
   const [open, setOpen] = useState(false);
 
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    window.location.href = '/';
   };
 
   // Get first letter and make it uppercase

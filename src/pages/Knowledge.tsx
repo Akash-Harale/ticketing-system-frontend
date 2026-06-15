@@ -10,169 +10,48 @@ import {
   ExternalLink,
   Play,
   Eye,
+  Plus,
 } from 'lucide-react';
 import { Tab, TabItem } from '../components/ui/Tab';
-import { Accordion, AccordionItem } from '../components/ui/Accordion';
+import { Accordion } from '../components/ui/Accordion';
+import { useAuth } from '../context/auth/useAuth';
+import { api } from '../api/axios';
+import { AddKnowledgeModal } from '../features/knowledge/components/AddKnowledgeModal';
 
-/* ─────────────────────────────────────────────
-   DATA
-───────────────────────────────────────────── */
+interface FAQItem {
+  id: string;
+  question: string;
+  answer: string;
+}
 
-const faqItems: AccordionItem[] = [
-  {
-    id: 'faq-1',
-    question: 'How do I create a new support ticket?',
-    answer:
-      'Navigate to the Dashboard and click the "New Ticket" button in the top-right corner. Fill in the required fields — Title, Category, Priority, and Description — then click Submit. You will receive a confirmation email with your ticket ID.',
-  },
-  {
-    id: 'faq-2',
-    question: 'What are the different ticket priority levels?',
-    answer:
-      'Tickets are categorised into four priority levels: Low (resolved within 5 business days), Medium (3 business days), High (1 business day), and Critical (same day, 24/7 support). Priority is auto-suggested based on the issue type but can be adjusted manually.',
-  },
-  {
-    id: 'faq-3',
-    question: 'How can I track the status of my submitted ticket?',
-    answer:
-      'Go to "My Tickets" from the sidebar. Each ticket card shows its current status — Open, In Progress, Pending Review, or Resolved. You can click on any ticket to view the full conversation thread and status timeline.',
-  },
-  {
-    id: 'faq-4',
-    question: 'Can I reopen a closed ticket?',
-    answer:
-      'Yes. Open the closed ticket from your ticket history and click "Reopen Ticket" at the bottom of the thread. Provide a reason for reopening. The ticket will be re-assigned to the original agent or the next available one in the queue.',
-  },
-  {
-    id: 'faq-5',
-    question: 'How do I escalate an unresolved ticket?',
-    answer:
-      'If a ticket has been open longer than its SLA target, an "Escalate" button will automatically appear. Alternatively, contact your account manager directly or use the Admin panel to manually bump the priority to Critical.',
-  },
-  {
-    id: 'faq-6',
-    question: 'Is it possible to assign a ticket to a specific agent?',
-    answer:
-      'Admins and Team Leads can manually assign tickets from the ticket detail view using the "Assign To" dropdown. Regular users can request a specific agent by mentioning them in a ticket comment using the @mention feature.',
-  },
-];
+interface PDFItem {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+}
 
-const pdfItems = [
-  {
-    id: 'pdf-1',
-    title: 'Getting Started Guide',
-    description:
-      'A comprehensive onboarding manual covering account setup, dashboard navigation, and your first ticket submission. Ideal for new team members joining the platform.',
-    size: '2.4 MB',
-    pages: 18,
-    tag: 'Onboarding',
-  },
-  {
-    id: 'pdf-2',
-    title: 'Admin Configuration Handbook',
-    description:
-      'Step-by-step instructions for system administrators to configure roles, permissions, SLA policies, email templates, and webhook integrations.',
-    size: '5.1 MB',
-    pages: 42,
-    tag: 'Admin',
-  },
-  {
-    id: 'pdf-3',
-    title: 'Ticket Workflow & SLA Policy',
-    description:
-      'Detailed documentation of the ticket lifecycle — from creation through resolution — including SLA thresholds, escalation rules, and audit trail specifications.',
-    size: '1.8 MB',
-    pages: 24,
-    tag: 'Policy',
-  },
-  {
-    id: 'pdf-4',
-    title: 'API Integration Reference',
-    description:
-      'Full REST API documentation with endpoint schemas, authentication methods (JWT & API key), rate limits, and code samples in Node.js, Python, and cURL.',
-    size: '3.7 MB',
-    pages: 56,
-    tag: 'Developer',
-  },
-];
+interface VideoItem {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+}
 
-const videoItems = [
-  {
-    id: 'vid-1',
-    title: 'Platform Overview & Navigation',
-    description:
-      'A quick walkthrough of the main dashboard, sidebar navigation, and key modules. Perfect for a first look at the system before diving deeper.',
-    duration: '4:32',
-    category: 'Getting Started',
-  },
-  {
-    id: 'vid-2',
-    title: 'Creating & Managing Tickets',
-    description:
-      'Learn how to submit tickets, set priorities, attach files, add watchers, and track progress through the full resolution lifecycle.',
-    duration: '7:15',
-    category: 'Core Features',
-  },
-  {
-    id: 'vid-3',
-    title: 'Setting Up User Roles & Permissions',
-    description:
-      'This tutorial guides admins through creating custom roles, assigning privilege sets, and auditing user access levels across the organisation.',
-    duration: '9:48',
-    category: 'Admin',
-  },
-  {
-    id: 'vid-4',
-    title: 'Configuring SLA & Escalation Rules',
-    description:
-      'Understand how to define SLA tiers per ticket category, set breach notifications, and create automated escalation workflows using the rule engine.',
-    duration: '11:03',
-    category: 'Advanced',
-  },
-  {
-    id: 'vid-5',
-    title: 'Integrating with Third-Party Tools',
-    description:
-      'Connect the ticketing system with Slack, Jira, GitHub, and custom webhooks. Covers OAuth flow, mapping fields, and testing integrations end-to-end.',
-    duration: '13:27',
-    category: 'Developer',
-  },
-];
+interface TemplateItem {
+  id: string;
+  title: string;
+  description: string;
+}
 
-const templateItems = [
-  {
-    id: 'tpl-1',
-    title: 'Bug Report Template',
-    description:
-      'A structured template capturing environment details, steps to reproduce, expected vs actual behaviour, and severity rating. Helps agents triage faster.',
-    category: 'Bug Report',
-    fields: 8,
-  },
-  {
-    id: 'tpl-2',
-    title: 'Feature Request Form',
-    description:
-      'Standardised form for submitting enhancement ideas — includes business justification, user story format, acceptance criteria, and estimated impact.',
-    category: 'Feature Request',
-    fields: 7,
-  },
-  {
-    id: 'tpl-3',
-    title: 'Infrastructure Incident Report',
-    description:
-      'Used for outages and service degradations. Captures affected services, incident timeline, root cause analysis (RCA), and corrective action items.',
-    category: 'Incident',
-    fields: 12,
-  },
-  {
-    id: 'tpl-4',
-    title: 'Onboarding Request Checklist',
-    description:
-      'Pre-built checklist for provisioning access, configuring accounts, and completing onboarding tasks for new hires joining a team.',
-    category: 'HR / IT',
-    fields: 15,
-  },
-];
+interface MediaItem {
+  _id: string;
+  media_type: 'faq' | 'document' | 'video' | 'template';
+  media_header: string;
+  media_narration: string;
+  media_file_url?: string;
+  media_url?: string;
+}
 
 const TABS: TabItem[] = [
   { id: 'faq', label: 'FAQs', icon: <HelpCircle className="h-4 w-4" /> },
@@ -182,38 +61,11 @@ const TABS: TabItem[] = [
 ];
 
 /* ─────────────────────────────────────────────
-   TAG / CATEGORY BADGE
-───────────────────────────────────────────── */
-const tagColors: Record<string, string> = {
-  Onboarding: 'bg-green-100 text-green-700',
-  Admin: 'bg-orange-100 text-orange-700',
-  Policy: 'bg-purple-100 text-purple-700',
-  Developer: 'bg-blue-100 text-blue-700',
-  'Getting Started': 'bg-green-100 text-green-700',
-  'Core Features': 'bg-indigo-100 text-indigo-700',
-  Advanced: 'bg-red-100 text-red-700',
-  'Bug Report': 'bg-red-100 text-red-700',
-  'Feature Request': 'bg-blue-100 text-blue-700',
-  Incident: 'bg-orange-100 text-orange-700',
-  'HR / IT': 'bg-teal-100 text-teal-700',
-};
-
-const Badge = ({ label }: { label: string }) => (
-  <span
-    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-      tagColors[label] ?? 'bg-gray-100 text-gray-600'
-    }`}
-  >
-    {label}
-  </span>
-);
-
-/* ─────────────────────────────────────────────
    SUB-SECTIONS
-───────────────────────────────────────────── */
+   ───────────────────────────────────────────── */
 
-const FaqSection = ({ query }: { query: string }) => {
-  const filtered = faqItems.filter(
+const FaqSection = ({ query, items }: { query: string; items: FAQItem[] }) => {
+  const filtered = items.filter(
     (f) =>
       f.question.toLowerCase().includes(query.toLowerCase()) ||
       f.answer.toLowerCase().includes(query.toLowerCase()),
@@ -233,8 +85,8 @@ const FaqSection = ({ query }: { query: string }) => {
   );
 };
 
-const PdfSection = ({ query }: { query: string }) => {
-  const filtered = pdfItems.filter(
+const PdfSection = ({ query, items }: { query: string; items: PDFItem[] }) => {
+  const filtered = items.filter(
     (p) =>
       p.title.toLowerCase().includes(query.toLowerCase()) ||
       p.description.toLowerCase().includes(query.toLowerCase()),
@@ -252,12 +104,11 @@ const PdfSection = ({ query }: { query: string }) => {
             key={pdf.id}
             className="group flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:border-indigo-200 hover:shadow-md"
           >
-            {/* Icon + tag row */}
-            <div className="flex items-start justify-between gap-3">
+            {/* Icon row */}
+            <div className="flex items-start">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-500">
                 <FileText className="h-5 w-5" />
               </div>
-              <Badge label={pdf.tag} />
             </div>
 
             {/* Content */}
@@ -267,15 +118,11 @@ const PdfSection = ({ query }: { query: string }) => {
             </div>
 
             {/* Meta + actions */}
-            <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-              <div className="flex gap-3 text-[12px] text-gray-400">
-                <span>{pdf.pages} pages</span>
-                <span>·</span>
-                <span>{pdf.size}</span>
-              </div>
+            <div className="flex items-center justify-end border-t border-gray-100 pt-3">
               <div className="flex gap-2">
                 <button
                   id={`pdf-preview-${pdf.id}`}
+                  onClick={() => pdf.url && window.open(pdf.url, '_blank')}
                   className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 transition hover:border-indigo-300 hover:text-indigo-600"
                 >
                   <Eye className="h-3 w-3" />
@@ -283,6 +130,7 @@ const PdfSection = ({ query }: { query: string }) => {
                 </button>
                 <button
                   id={`pdf-download-${pdf.id}`}
+                  onClick={() => pdf.url && window.open(pdf.url, '_blank')}
                   className="flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs text-white transition hover:bg-indigo-700"
                 >
                   <FileDown className="h-3 w-3" />
@@ -297,8 +145,8 @@ const PdfSection = ({ query }: { query: string }) => {
   );
 };
 
-const VideoSection = ({ query }: { query: string }) => {
-  const filtered = videoItems.filter(
+const VideoSection = ({ query, items }: { query: string; items: VideoItem[] }) => {
+  const filtered = items.filter(
     (v) =>
       v.title.toLowerCase().includes(query.toLowerCase()) ||
       v.description.toLowerCase().includes(query.toLowerCase()),
@@ -319,22 +167,17 @@ const VideoSection = ({ query }: { query: string }) => {
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition-transform duration-200 group-hover:scale-110">
                 <Play className="h-4 w-4 translate-x-0.5" />
               </div>
-              <span className="absolute right-1.5 bottom-1 rounded bg-black/60 px-1 py-0.5 text-[10px] font-medium text-white">
-                {vid.duration}
-              </span>
             </div>
 
             {/* Info */}
             <div className="flex flex-1 flex-col justify-between">
               <div>
-                <div className="mb-1 flex items-center gap-2">
-                  <Badge label={vid.category} />
-                </div>
                 <h3 className="mb-1 text-sm font-semibold text-gray-900">{vid.title}</h3>
                 <p className="text-[13px] leading-relaxed text-gray-500">{vid.description}</p>
               </div>
               <button
                 id={`vid-watch-${vid.id}`}
+                onClick={() => vid.url && window.open(vid.url, '_blank')}
                 className="mt-2 flex w-fit items-center gap-1.5 text-xs font-medium text-indigo-600 transition hover:text-indigo-800"
               >
                 Watch now <ExternalLink className="h-3 w-3" />
@@ -347,8 +190,8 @@ const VideoSection = ({ query }: { query: string }) => {
   );
 };
 
-const TemplateSection = ({ query }: { query: string }) => {
-  const filtered = templateItems.filter(
+const TemplateSection = ({ query, items }: { query: string; items: TemplateItem[] }) => {
+  const filtered = items.filter(
     (t) =>
       t.title.toLowerCase().includes(query.toLowerCase()) ||
       t.description.toLowerCase().includes(query.toLowerCase()),
@@ -366,11 +209,10 @@ const TemplateSection = ({ query }: { query: string }) => {
             key={tpl.id}
             className="group flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:border-indigo-200 hover:shadow-md"
           >
-            <div className="flex items-start justify-between">
+            <div className="flex items-start">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-500">
                 <LayoutTemplate className="h-5 w-5" />
               </div>
-              <Badge label={tpl.category} />
             </div>
 
             <div className="flex-1">
@@ -378,8 +220,7 @@ const TemplateSection = ({ query }: { query: string }) => {
               <p className="text-[13px] leading-relaxed text-gray-500">{tpl.description}</p>
             </div>
 
-            <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-              <span className="text-[12px] text-gray-400">{tpl.fields} fields</span>
+            <div className="flex items-center justify-end border-t border-gray-100 pt-3">
               <button
                 id={`tpl-use-${tpl.id}`}
                 className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs text-white transition hover:bg-indigo-700"
@@ -403,13 +244,64 @@ const EmptyState = ({ message }: { message: string }) => (
 
 /* ─────────────────────────────────────────────
    MAIN PAGE
-───────────────────────────────────────────── */
+   ───────────────────────────────────────────── */
 
 export const Knowledge = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<string>('faq');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const [data, setData] = useState<{
+    faq: FAQItem[];
+    pdf: PDFItem[];
+    videos: VideoItem[];
+    templates: TemplateItem[];
+  }>({
+    faq: [],
+    pdf: [],
+    videos: [],
+    templates: [],
+  });
+
+  const fetchData = async () => {
+    try {
+      const response = await api.get('/mediacorner');
+      const items: MediaItem[] = response.data.data || [];
+      const faq = items
+        .filter((i) => i.media_type === 'faq')
+        .map((i) => ({ id: i._id, question: i.media_header, answer: i.media_narration }));
+      const pdf = items
+        .filter((i) => i.media_type === 'document')
+        .map((i) => ({
+          id: i._id,
+          title: i.media_header,
+          description: i.media_narration,
+          url: i.media_file_url || i.media_url || '',
+        }));
+      const videos = items
+        .filter((i) => i.media_type === 'video')
+        .map((i) => ({
+          id: i._id,
+          title: i.media_header,
+          description: i.media_narration,
+          url: i.media_file_url || i.media_url || '',
+        }));
+      const templates = items
+        .filter((i) => i.media_type === 'template')
+        .map((i) => ({ id: i._id, title: i.media_header, description: i.media_narration }));
+
+      setData({ faq, pdf, videos, templates });
+    } catch (error) {
+      console.error('Failed to fetch knowledge base', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   // Focus input when search bar opens
   useEffect(() => {
@@ -421,10 +313,10 @@ export const Knowledge = () => {
   }, [searchOpen]);
 
   const sectionCount: Record<string, number> = {
-    faq: faqItems.length,
-    pdf: pdfItems.length,
-    videos: videoItems.length,
-    templates: templateItems.length,
+    faq: data.faq.length,
+    pdf: data.pdf.length,
+    videos: data.videos.length,
+    templates: data.templates.length,
   };
 
   return (
@@ -472,6 +364,16 @@ export const Knowledge = () => {
                 Search
               </button>
             )}
+
+            {user?.role_id?.name === 'Superadmin' && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md active:scale-95"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Add Knowledge base</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -495,11 +397,19 @@ export const Knowledge = () => {
         </div>
 
         {/* Dynamic section */}
-        {activeTab === 'faq' && <FaqSection query={searchQuery} />}
-        {activeTab === 'pdf' && <PdfSection query={searchQuery} />}
-        {activeTab === 'videos' && <VideoSection query={searchQuery} />}
-        {activeTab === 'templates' && <TemplateSection query={searchQuery} />}
+        {activeTab === 'faq' && <FaqSection query={searchQuery} items={data.faq} />}
+        {activeTab === 'pdf' && <PdfSection query={searchQuery} items={data.pdf} />}
+        {activeTab === 'videos' && <VideoSection query={searchQuery} items={data.videos} />}
+        {activeTab === 'templates' && (
+          <TemplateSection query={searchQuery} items={data.templates} />
+        )}
       </div>
+
+      <AddKnowledgeModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSuccess={fetchData}
+      />
     </div>
   );
 };
