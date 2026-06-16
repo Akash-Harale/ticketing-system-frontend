@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Plus,
   Search,
@@ -8,7 +8,6 @@ import {
   Mail,
   Phone,
   ChevronRight,
-  ChevronDown,
   X,
   AlertCircle,
   CheckCircle2,
@@ -22,6 +21,8 @@ import {
   Member,
 } from '@/services/organization.service';
 import { locationService, State, District } from '@/services/location.service';
+import { StateCard } from '@/features/programUnit/components/StateCard';
+import { MultiSelectDropdown, MultiSelectOption } from '@/components/ui/MultiSelectDropdown';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const TABS = ['Program Unit Details', 'Coordinator Details'] as const;
@@ -105,8 +106,28 @@ const validateTab2 = (form: FormState): FormErrors => {
   return errors;
 };
 
-// ── Main Page Component ───────────────────────────────────────────────────────
+// ── Drawer Information Row ────────────────────────────────────────────────────
+const InfoRow = ({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) => (
+  <div className="flex items-start gap-3 border-b border-gray-100 py-3.5 last:border-0">
+    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-500">
+      {icon}
+    </span>
+    <div className="min-w-0 flex-1">
+      <p className="text-gray-405 text-[10px] font-bold tracking-wider uppercase">{label}</p>
+      <p className="mt-0.5 text-sm leading-snug font-semibold text-gray-800">{value}</p>
+    </div>
+  </div>
+);
 
+// ── Main Page Component ───────────────────────────────────────────────────────
 export const ProgramUnit = () => {
   // List state
   const [units, setUnits] = useState<Organization[]>([]);
@@ -119,10 +140,9 @@ export const ProgramUnit = () => {
   const [districts, setDistricts] = useState<District[]>([]);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
 
-  // Accordion & Filter state
-  const [expandedStateId, setExpandedStateId] = useState<string | null>(null);
-  const [expandedStateDistricts, setExpandedStateDistricts] = useState<District[]>([]);
-  const [districtFilter, setDistrictFilter] = useState<string>(''); // district ID
+  // State & District selection filters (matching Users.tsx style)
+  const [selectedState, setSelectedState] = useState<string | null>(null);
+  const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
 
   // Drawer state
   const [selectedUnit, setSelectedUnit] = useState<Organization | null>(null);
@@ -178,19 +198,6 @@ export const ProgramUnit = () => {
       .catch(() => {})
       .finally(() => setLoadingDistricts(false));
   }, [form.orgn_state]);
-
-  // ── Fetch districts when Accordion opens ──────────────────────────────────
-  useEffect(() => {
-    if (expandedStateId) {
-      locationService
-        .getDistrictsByState(expandedStateId)
-        .then(setExpandedStateDistricts)
-        .catch(() => {});
-    } else {
-      setExpandedStateDistricts([]);
-    }
-    setDistrictFilter('');
-  }, [expandedStateId]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const openModal = () => {
@@ -288,34 +295,76 @@ export const ProgramUnit = () => {
   };
 
   // ── Derived Data ──────────────────────────────────────────────────────────
-  const filteredUnits = units.filter(
-    (u) =>
-      u.orgn_name.toLowerCase().includes(search.toLowerCase()) ||
-      u.orgn_id.toLowerCase().includes(search.toLowerCase()) ||
-      getStateName(u).toLowerCase().includes(search.toLowerCase()),
-  );
+  const filteredUnits = useMemo(() => {
+    return units.filter(
+      (u) =>
+        u.orgn_name.toLowerCase().includes(search.toLowerCase()) ||
+        u.orgn_id.toLowerCase().includes(search.toLowerCase()) ||
+        getStateName(u).toLowerCase().includes(search.toLowerCase()),
+    );
+  }, [units, search]);
 
-  const unitsByState = filteredUnits.reduce(
-    (acc, unit) => {
-      const stateId = getStateId(unit);
-      if (!stateId) return acc;
-      if (!acc[stateId]) acc[stateId] = [];
-      acc[stateId].push(unit);
-      return acc;
-    },
-    {} as Record<string, Organization[]>,
-  );
+  const unitsByState = useMemo(() => {
+    return filteredUnits.reduce(
+      (acc, unit) => {
+        const stateId = getStateId(unit);
+        if (!stateId) return acc;
+        if (!acc[stateId]) acc[stateId] = [];
+        acc[stateId].push(unit);
+        return acc;
+      },
+      {} as Record<string, Organization[]>,
+    );
+  }, [filteredUnits]);
 
-  const statesWithUnits = Object.keys(unitsByState)
-    .map((stateId) => {
-      const unit = unitsByState[stateId][0];
-      return {
-        id: stateId,
-        name: getStateName(unit),
-        units: unitsByState[stateId],
-      };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const statesWithUnits = useMemo(() => {
+    return Object.keys(unitsByState)
+      .map((stateId) => {
+        const unit = unitsByState[stateId][0];
+        return {
+          id: stateId,
+          name: getStateName(unit),
+          units: unitsByState[stateId],
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [unitsByState]);
+
+  const districtOptions: MultiSelectOption[] = useMemo(() => {
+    if (!selectedState) return [];
+    const stateObj = statesWithUnits.find((s) => s.id === selectedState);
+    if (!stateObj) return [];
+
+    const distMap = new Map<string, string>();
+    stateObj.units.forEach((u) => {
+      const name = getDistrictName(u);
+      const id = getDistrictId(u);
+      if (name && name !== '—' && id) {
+        distMap.set(name, id);
+      }
+    });
+
+    return Array.from(distMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([name, id]) => ({ value: id, label: name }));
+  }, [selectedState, statesWithUnits]);
+
+  const displayedUnits = useMemo(() => {
+    if (!selectedState || selectedDistricts.length === 0) return [];
+    const stateObj = statesWithUnits.find((s) => s.id === selectedState);
+    if (!stateObj) return [];
+    return stateObj.units.filter((u) => selectedDistricts.includes(getDistrictId(u)));
+  }, [selectedState, selectedDistricts, statesWithUnits]);
+
+  const handleStateClick = (stateId: string) => {
+    if (selectedState === stateId) {
+      setSelectedState(null);
+      setSelectedDistricts([]);
+    } else {
+      setSelectedState(stateId);
+      setSelectedDistricts([]);
+    }
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -324,37 +373,64 @@ export const ProgramUnit = () => {
       {/* Overlay */}
       {selectedUnit && (
         <div
-          className="fixed inset-0 z-40 bg-gray-900/40 backdrop-blur-sm transition-opacity"
+          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm transition-opacity"
           onClick={closeDrawer}
         />
       )}
 
       {/* Drawer */}
       <div
-        className={`fixed inset-y-0 right-0 z-50 w-[420px] max-w-full bg-white shadow-2xl transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl transition-transform duration-300 ease-in-out ${
           selectedUnit ? 'translate-x-0' : 'translate-x-full'
         } flex flex-col`}
+        role="dialog"
+        aria-modal="true"
       >
-        <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50/50 px-6 py-4">
-          <h2 className="text-lg font-bold text-gray-900">Program Unit Details</h2>
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-5">
+          <div className="flex min-w-0 items-center gap-4">
+            {/* Avatar */}
+            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg">
+              <Building2 className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <h2
+                id="program-unit-drawer-title"
+                className="truncate text-[15px] leading-snug font-bold text-gray-900"
+              >
+                {selectedUnit?.orgn_name}
+              </h2>
+              <p className="mt-0.5 truncate text-[13px] text-gray-500">{selectedUnit?.orgn_id}</p>
+              <div className="mt-1.5 flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Active
+                </span>
+                <span className="text-indigo-750 rounded-full bg-indigo-100 px-2.5 py-0.5 text-[10px] font-bold uppercase">
+                  PU
+                </span>
+              </div>
+            </div>
+          </div>
           <button
             onClick={closeDrawer}
-            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700"
+            className="flex-shrink-0 rounded-full p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+            aria-label="Close details"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Drawer Tabs */}
-        <div className="flex border-b border-gray-200 bg-white px-2">
+        <div className="flex gap-2 border-b border-gray-100 bg-white px-6 py-3">
           {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setDrawerTab(tab)}
-              className={`flex-1 border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
+              className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all duration-200 ${
                 drawerTab === tab
-                  ? 'border-indigo-600 text-indigo-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-800'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
               }`}
             >
               {tab}
@@ -362,51 +438,64 @@ export const ProgramUnit = () => {
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-white px-6 py-6">
+        <div className="flex-1 overflow-y-auto bg-white px-6 py-4">
           {selectedUnit && (
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col">
               {/* Unit Info Section */}
               {drawerTab === TABS[0] && (
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-6 shadow-sm">
-                  <div className="mb-5 flex items-start justify-between">
-                    <div>
-                      <h3 className="text-base font-bold text-gray-900">
-                        {selectedUnit.orgn_name}
-                      </h3>
-                      <p className="mt-1 text-sm font-semibold text-indigo-600">
-                        {selectedUnit.orgn_id}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-indigo-100 px-3 py-1.5 text-[11px] font-bold tracking-wide text-indigo-700 uppercase">
-                      PU
-                    </span>
-                  </div>
-
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-start gap-3 text-sm">
-                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-                      <div className="leading-relaxed text-gray-700">
-                        {[selectedUnit.orgn_address1, selectedUnit.orgn_address2]
-                          .filter(Boolean)
-                          .map((line, i) => (
-                            <p key={i}>{line}</p>
-                          ))}
-                        <p>
-                          {[selectedUnit.orgn_place, getDistrictName(selectedUnit)]
-                            .filter(Boolean)
-                            .join(', ')}
-                        </p>
-                        <p className="mt-1 font-medium text-gray-900">
-                          {getStateName(selectedUnit)}{' '}
-                          {selectedUnit.orgn_pincode ? `- ${selectedUnit.orgn_pincode}` : ''}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 border-t border-gray-200 pt-3 text-sm text-gray-600">
-                      <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
-                      <p>Created on {new Date(selectedUnit.createdAt).toLocaleDateString()}</p>
-                    </div>
-                  </div>
+                <div className="flex flex-col">
+                  <InfoRow
+                    icon={<Building2 className="h-4 w-4" />}
+                    label="Unit Name"
+                    value={selectedUnit.orgn_name}
+                  />
+                  <InfoRow
+                    icon={<Building2 className="h-4 w-4" />}
+                    label="Unit ID"
+                    value={selectedUnit.orgn_id}
+                  />
+                  {(selectedUnit.orgn_address1 || selectedUnit.orgn_address2) && (
+                    <InfoRow
+                      icon={<MapPin className="h-4 w-4" />}
+                      label="Address"
+                      value={[selectedUnit.orgn_address1, selectedUnit.orgn_address2]
+                        .filter(Boolean)
+                        .join(', ')}
+                    />
+                  )}
+                  {selectedUnit.orgn_place && (
+                    <InfoRow
+                      icon={<MapPin className="h-4 w-4" />}
+                      label="Place / City"
+                      value={selectedUnit.orgn_place}
+                    />
+                  )}
+                  <InfoRow
+                    icon={<MapPin className="h-4 w-4" />}
+                    label="District"
+                    value={getDistrictName(selectedUnit)}
+                  />
+                  <InfoRow
+                    icon={<MapPin className="h-4 w-4" />}
+                    label="State"
+                    value={getStateName(selectedUnit)}
+                  />
+                  {selectedUnit.orgn_pincode && (
+                    <InfoRow
+                      icon={<MapPin className="h-4 w-4" />}
+                      label="Pincode"
+                      value={selectedUnit.orgn_pincode}
+                    />
+                  )}
+                  <InfoRow
+                    icon={<Calendar className="h-4 w-4" />}
+                    label="Created Date"
+                    value={new Date(selectedUnit.createdAt).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  />
                 </div>
               )}
 
@@ -414,57 +503,73 @@ export const ProgramUnit = () => {
               {drawerTab === TABS[1] && (
                 <div>
                   {loadingCoordinator ? (
-                    <div className="flex flex-col items-center justify-center gap-3 py-10 text-sm text-gray-500">
+                    <div className="flex flex-col items-center justify-center gap-3 py-12 text-sm text-gray-500">
                       <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
                       Loading coordinator details...
                     </div>
                   ) : selectedCoordinator ? (
-                    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-                      <div className="mb-5 flex items-center gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-700">
+                    <div className="flex flex-col">
+                      <div className="mb-4 flex items-center gap-4 border-b border-gray-100 pb-4">
+                        <div className="to-indigo-650 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 text-base font-bold text-white shadow">
                           {selectedCoordinator.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="text-base font-bold text-gray-900">
+                          <p className="text-base font-bold text-gray-950">
                             {selectedCoordinator.name}
                           </p>
-                          <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-green-600">
+                          <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-emerald-600">
                             <CheckCircle2 className="h-3.5 w-3.5" /> Active Coordinator
                           </p>
                         </div>
                       </div>
 
-                      <div className="mt-6 flex flex-col gap-4 rounded-lg bg-gray-50 p-4 text-sm">
-                        <div className="flex items-center gap-3 text-gray-700">
-                          <Mail className="h-4 w-4 shrink-0 text-gray-400" />
+                      <InfoRow
+                        icon={<User className="h-4 w-4" />}
+                        label="Full Name"
+                        value={selectedCoordinator.name}
+                      />
+                      <InfoRow
+                        icon={<Mail className="h-4 w-4" />}
+                        label="Email Address"
+                        value={selectedCoordinator.email}
+                      />
+                      <InfoRow
+                        icon={<Phone className="h-4 w-4" />}
+                        label="Mobile Number"
+                        value={selectedCoordinator.mobile || '—'}
+                      />
+                      <InfoRow
+                        icon={<Building2 className="h-4 w-4" />}
+                        label="Assigned Unit"
+                        value={selectedUnit.orgn_name}
+                      />
+
+                      {/* Action Buttons */}
+                      <div className="mt-6 flex gap-3">
+                        {selectedCoordinator.mobile && (
                           <a
-                            href={`mailto:${selectedCoordinator.email}`}
-                            className="font-medium text-indigo-600 hover:underline"
+                            href={`tel:${selectedCoordinator.mobile}`}
+                            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
                           >
-                            {selectedCoordinator.email}
+                            <Phone className="h-4 w-4" />
+                            Call
                           </a>
-                        </div>
-                        <div className="flex items-center gap-3 text-gray-700">
-                          <Phone className="h-4 w-4 shrink-0 text-gray-400" />
-                          {selectedCoordinator.mobile ? (
-                            <a
-                              href={`tel:${selectedCoordinator.mobile}`}
-                              className="font-medium transition-colors hover:text-indigo-600"
-                            >
-                              {selectedCoordinator.mobile}
-                            </a>
-                          ) : (
-                            <span className="text-gray-400 italic">No mobile provided</span>
-                          )}
-                        </div>
+                        )}
+                        <a
+                          href={`mailto:${selectedCoordinator.email}`}
+                          className="text-indigo-705 flex flex-1 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold transition hover:bg-indigo-100"
+                        >
+                          <Mail className="h-4 w-4" />
+                          Email
+                        </a>
                       </div>
                     </div>
                   ) : (
-                    <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+                    <div className="border-gray-150 mt-4 rounded-2xl border-2 border-dashed bg-gray-50/50 p-8 text-center">
                       <User className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-                      <p className="text-sm font-medium text-gray-600">No coordinator assigned</p>
-                      <p className="mt-1 text-xs text-gray-400">
-                        This program unit doesn't have a coordinator yet.
+                      <p className="text-gray-750 text-sm font-bold">No coordinator assigned</p>
+                      <p className="text-gray-450 mt-1 text-xs leading-relaxed">
+                        This program unit doesn't have an active coordinator assigned yet.
                       </p>
                     </div>
                   )}
@@ -479,7 +584,7 @@ export const ProgramUnit = () => {
       <div className="border-b border-gray-200 bg-white px-6 py-5">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Program Units</h1>
+            <h1 className="text-xl font-bold text-gray-900">Program Units</h1>
             <p className="mt-0.5 text-sm text-gray-400">
               Manage NSS Program Units and their coordinators
             </p>
@@ -487,7 +592,7 @@ export const ProgramUnit = () => {
           <button
             id="btn-add-program-unit"
             onClick={openModal}
-            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 active:bg-indigo-700"
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-indigo-500 active:bg-indigo-700"
           >
             <Plus className="h-4 w-4" />
             Add Program Unit
@@ -496,167 +601,198 @@ export const ProgramUnit = () => {
 
         {/* Search */}
         <div className="relative mt-4 max-w-sm">
-          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="text-gray-450 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <input
             id="input-search-units"
             type="search"
             placeholder="Search by name, ID or state…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 bg-white py-2 pr-4 pl-9 text-sm text-gray-900 placeholder-gray-400 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            className="border-gray-250 w-full rounded-xl border bg-white py-2.5 pr-4 pl-9 text-sm text-gray-900 placeholder-gray-400 shadow-sm outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
           />
         </div>
       </div>
 
-      {/* ── Main Content (Accordions) ─────────────────────────────────────── */}
+      {/* ── Main Content ─────────────────────────────────────────────── */}
       <div className="p-6">
         {loadingList ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
           </div>
         ) : listError ? (
-          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          <div className="text-red-650 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm">
             <AlertCircle className="h-4 w-4 shrink-0" />
             {listError}
           </div>
         ) : statesWithUnits.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <Building2 className="mb-3 h-10 w-10 text-gray-400" />
-            <p className="text-sm font-medium text-gray-500">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-white py-24 text-center shadow-sm">
+            <Building2 className="text-gray-305 mb-3 h-10 w-10" />
+            <p className="text-sm font-semibold text-gray-500">
               {search ? 'No units match your search.' : 'No program units yet.'}
             </p>
             {!search && (
-              <button onClick={openModal} className="mt-3 text-sm text-indigo-600 hover:underline">
+              <button
+                onClick={openModal}
+                className="text-indigo-650 mt-3 text-sm font-bold hover:underline"
+              >
                 Add your first program unit →
               </button>
             )}
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            {statesWithUnits.map((state) => {
-              const isExpanded = expandedStateId === state.id;
-
-              // Apply district filter
-              const stateUnits = state.units.filter((u) => {
-                if (!districtFilter) return true;
-                return getDistrictId(u) === districtFilter;
-              });
-
-              return (
-                <div
-                  key={state.id}
-                  className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
-                >
-                  {/* Accordion Header */}
-                  <button
-                    onClick={() => {
-                      if (isExpanded) {
-                        setExpandedStateId(null);
-                      } else {
-                        setExpandedStateId(state.id);
-                      }
-                    }}
-                    className="flex w-full items-center justify-between px-6 py-4 transition-colors hover:bg-gray-50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-colors ${isExpanded ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600'}`}
-                      >
-                        {state.name.charAt(0)}
-                      </span>
-                      <div className="text-left">
-                        <span className="block text-base font-semibold text-gray-900">
-                          {state.name}
-                        </span>
-                        <span className="block text-xs text-gray-500">
-                          {state.units.length} Unit(s)
-                        </span>
-                      </div>
-                    </div>
-                    <ChevronDown
-                      className={`h-5 w-5 text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-180 text-indigo-600' : ''}`}
-                    />
-                  </button>
-
-                  {/* Accordion Content */}
-                  <div
-                    className={`transition-all duration-300 ease-in-out ${
-                      isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
-                    } overflow-hidden`}
-                  >
-                    <div className="border-t border-gray-100 bg-gray-50/50 p-6">
-                      {/* District Filter */}
-                      <div className="mb-6 flex items-center justify-end">
-                        <div className="flex items-center gap-2">
-                          <label
-                            htmlFor={`filter-${state.id}`}
-                            className="text-sm font-medium text-gray-600"
-                          >
-                            Filter by District:
-                          </label>
-                          <select
-                            id={`filter-${state.id}`}
-                            value={districtFilter}
-                            onChange={(e) => setDistrictFilter(e.target.value)}
-                            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                          >
-                            <option value="">All Districts</option>
-                            {expandedStateDistricts.map((d) => (
-                              <option key={d._id} value={d._id}>
-                                {d.district_name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Units Grid */}
-                      {stateUnits.length === 0 ? (
-                        <div className="rounded-xl border border-dashed border-gray-300 bg-white py-8 text-center text-sm text-gray-500">
-                          No units found in this district.
-                        </div>
-                      ) : (
-                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                          {stateUnits.map((unit) => (
-                            <div
-                              key={unit._id}
-                              onClick={() => openUnitDetails(unit)}
-                              className="group relative flex cursor-pointer flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 transition-all hover:border-indigo-400 hover:shadow-md hover:shadow-indigo-100/50"
-                            >
-                              <span className="absolute top-4 right-4 rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider text-indigo-600 uppercase">
-                                PU
-                              </span>
-                              <div>
-                                <p className="pr-10 text-[14px] leading-snug font-bold text-gray-900 transition-colors group-hover:text-indigo-600">
-                                  {unit.orgn_name}
-                                </p>
-                                <p className="mt-0.5 text-xs font-medium text-gray-500">
-                                  {unit.orgn_id}
-                                </p>
-                              </div>
-                              <div className="mt-1 flex flex-col gap-1.5 text-xs text-gray-500">
-                                {(unit.orgn_place || getDistrictName(unit) !== '—') && (
-                                  <span className="flex items-center gap-1.5">
-                                    <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                                    {[unit.orgn_place, getDistrictName(unit)]
-                                      .filter(Boolean)
-                                      .join(', ')}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="mt-auto flex items-center justify-end pt-2 text-indigo-600 opacity-0 transition-opacity group-hover:opacity-100">
-                                <span className="text-xs font-medium">View details</span>
-                                <ChevronRight className="h-4 w-4" />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+            {search ? (
+              // Search Results mode
+              <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <h2 className="text-gray-805 mb-4 text-sm font-bold">
+                  Search Results ({filteredUnits.length})
+                </h2>
+                {filteredUnits.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <Building2 className="mb-3 h-10 w-10 animate-pulse text-gray-300" />
+                    <p className="text-gray-650 text-sm font-semibold">No units match "{search}"</p>
                   </div>
-                </div>
-              );
-            })}
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {filteredUnits.map((unit) => (
+                      <div
+                        key={unit._id}
+                        onClick={() => openUnitDetails(unit)}
+                        className="group relative flex cursor-pointer flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 transition-all duration-200 hover:border-indigo-400 hover:shadow-md hover:shadow-indigo-100/50"
+                      >
+                        <span className="text-indigo-650 absolute top-4 right-4 rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase">
+                          PU
+                        </span>
+                        <div>
+                          <p className="pr-10 text-[14px] leading-snug font-bold text-gray-900 transition-colors group-hover:text-indigo-600">
+                            {unit.orgn_name}
+                          </p>
+                          <p className="mt-0.5 text-xs font-semibold text-gray-500">
+                            {unit.orgn_id}
+                          </p>
+                        </div>
+                        <div className="mt-1 flex flex-col gap-1.5 text-xs text-gray-500">
+                          {(unit.orgn_place || getDistrictName(unit) !== '—') && (
+                            <span className="flex items-center gap-1.5 font-medium">
+                              <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                              {[unit.orgn_place, getDistrictName(unit)].filter(Boolean).join(', ')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-auto flex items-center justify-end pt-2 text-indigo-600 opacity-0 transition-opacity group-hover:opacity-100">
+                          <span className="text-xs font-semibold">View details</span>
+                          <ChevronRight className="h-4 w-4" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              // States List mode (identical interaction to Users.tsx Program Unit Users section)
+              <div className="flex flex-col gap-3">
+                {statesWithUnits.map((state) => (
+                  <div key={state.id}>
+                    <StateCard
+                      stateName={state.name}
+                      unitCount={state.units.length}
+                      isActive={selectedState === state.id}
+                      onClick={() => handleStateClick(state.id)}
+                    />
+
+                    {selectedState === state.id && (
+                      <div className="mt-2 mb-1 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-5">
+                        {/* District multi-select */}
+                        <div className="mb-4 flex items-center gap-3">
+                          <MapPin className="h-4 w-4 flex-shrink-0 text-indigo-500" />
+                          <p className="text-[13px] font-bold text-indigo-900">
+                            Select districts in{' '}
+                            <span className="text-indigo-600">{state.name}</span>
+                          </p>
+                        </div>
+
+                        <MultiSelectDropdown
+                          id={`pu-district-multiselect-${state.name.toLowerCase().replace(/\s+/g, '-')}`}
+                          options={districtOptions}
+                          selected={selectedDistricts}
+                          onChange={setSelectedDistricts}
+                          placeholder="Select one or more districts…"
+                          searchPlaceholder="Search districts…"
+                          maxTagsShown={3}
+                        />
+
+                        {/* Units list */}
+                        {selectedDistricts.length > 0 && (
+                          <div className="mt-6">
+                            <div className="mb-3 flex items-center gap-2">
+                              <p className="text-[11px] font-bold tracking-widest text-gray-400 uppercase">
+                                Program Units
+                                {selectedDistricts.length === 1
+                                  ? ` — ${districtOptions.find((o) => o.value === selectedDistricts[0])?.label ?? ''}`
+                                  : ` — ${selectedDistricts.length} districts`}
+                              </p>
+                              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-600">
+                                {displayedUnits.length}
+                              </span>
+                            </div>
+
+                            {displayedUnits.length === 0 ? (
+                              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-gray-200 bg-white py-12 text-center">
+                                <Building2 className="h-6 w-6 animate-pulse text-gray-400" />
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-700">
+                                    No program units found
+                                  </p>
+                                  <p className="text-gray-450 mt-0.5 text-[13px]">
+                                    No units registered in the selected districts yet.
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                                {displayedUnits.map((unit) => (
+                                  <div
+                                    key={unit._id}
+                                    onClick={() => openUnitDetails(unit)}
+                                    className="group hover:shadow-indigo-150/40 relative flex cursor-pointer flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 transition-all duration-200 hover:border-indigo-400 hover:shadow-md"
+                                  >
+                                    <span className="text-indigo-650 absolute top-4 right-4 rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase">
+                                      PU
+                                    </span>
+                                    <div>
+                                      <p className="pr-10 text-[14px] leading-snug font-bold text-gray-900 transition-colors group-hover:text-indigo-600">
+                                        {unit.orgn_name}
+                                      </p>
+                                      <p className="mt-0.5 text-xs font-semibold text-gray-500">
+                                        {unit.orgn_id}
+                                      </p>
+                                    </div>
+                                    <div className="mt-1 flex flex-col gap-1.5 text-xs text-gray-500">
+                                      {(unit.orgn_place || getDistrictName(unit) !== '—') && (
+                                        <span className="flex items-center gap-1.5 font-medium">
+                                          <MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                                          {[unit.orgn_place, getDistrictName(unit)]
+                                            .filter(Boolean)
+                                            .join(', ')}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-indigo-650 mt-auto flex items-center justify-end pt-2 opacity-0 transition-opacity group-hover:opacity-100">
+                                      <span className="text-xs font-bold">View details</span>
+                                      <ChevronRight className="h-4 w-4" />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
