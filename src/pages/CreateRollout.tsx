@@ -315,6 +315,28 @@ export const CreateRollout = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || selectedStates.length === 0 || selectedDistricts.length === 0) return;
+
+    // Validate that planned start and end dates are specified and valid
+    for (let i = 0; i < tasks.length; i++) {
+      const t = tasks[i];
+      if (!t.planned_start_date) {
+        setErrorMsg(`Planned start date is required for task "${t.task_name}".`);
+        return;
+      }
+      if (!t.planned_end_date) {
+        setErrorMsg(`Planned end date is required for task "${t.task_name}".`);
+        return;
+      }
+      const start = new Date(t.planned_start_date);
+      const end = new Date(t.planned_end_date);
+      if (end < start) {
+        setErrorMsg(
+          `For task "${t.task_name}", Planned End Date cannot be earlier than Planned Start Date.`,
+        );
+        return;
+      }
+    }
+
     setLoading(true);
     setErrorMsg('');
     try {
@@ -326,10 +348,8 @@ export const CreateRollout = ({
           task_name: t.task_name,
           task_desc: t.task_desc || undefined,
           task_priority: t.task_priority,
-          planned_start_date: t.planned_start_date
-            ? new Date(t.planned_start_date).toISOString()
-            : null,
-          planned_end_date: t.planned_end_date ? new Date(t.planned_end_date).toISOString() : null,
+          planned_start_date: new Date(t.planned_start_date).toISOString(),
+          planned_end_date: new Date(t.planned_end_date).toISOString(),
         })),
       });
       if (onSuccess) {

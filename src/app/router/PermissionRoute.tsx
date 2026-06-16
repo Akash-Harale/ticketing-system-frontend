@@ -5,9 +5,10 @@ import Unauthorized from '@/pages/Unauthorized';
 interface PermissionRouteProps {
   resource: string;
   action: string;
+  requireSuperadmin?: boolean;
 }
 
-export const PermissionRoute = ({ resource, action }: PermissionRouteProps) => {
+export const PermissionRoute = ({ resource, action, requireSuperadmin }: PermissionRouteProps) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -18,8 +19,15 @@ export const PermissionRoute = ({ resource, action }: PermissionRouteProps) => {
     return <Unauthorized />;
   }
 
+  if (requireSuperadmin) {
+    if (user.role_id?.name?.toLowerCase() === 'superadmin') {
+      return <Outlet />;
+    }
+    return <Unauthorized />;
+  }
+
   // Bypass for Superadmin
-  if (user.role_id?.name === 'Superadmin') {
+  if (user.role_id?.name?.toLowerCase() === 'superadmin') {
     return <Outlet />;
   }
 

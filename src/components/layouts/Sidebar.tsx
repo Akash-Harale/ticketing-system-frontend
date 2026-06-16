@@ -23,7 +23,7 @@ export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
 
   const hasPermission = (resource: string, action: string) => {
     if (!user) return false;
-    if (user.role_id?.name === 'Superadmin') return true;
+    if (user.role_id?.name?.toLowerCase() === 'superadmin') return true;
     return user.role_id?.privileges?.some(
       (p) =>
         p.resource?.name?.toLowerCase() === resource.toLowerCase() &&
@@ -57,7 +57,12 @@ export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
       icon: BookOpen,
       visible: hasPermission('Mediacorner', 'READ'),
     },
-    { label: 'Admin', to: '/admin', icon: ShieldCheck, visible: hasPermission('RBAC', 'READ') },
+    {
+      label: 'Admin',
+      to: '/admin',
+      icon: ShieldCheck,
+      visible: user?.role_id?.name?.toLowerCase() === 'superadmin',
+    },
   ].filter((item) => item.visible);
 
   const initial = user?.email?.charAt(0).toUpperCase() ?? '?';

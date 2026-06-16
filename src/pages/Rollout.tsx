@@ -520,7 +520,7 @@ const RolloutAccordion = ({
 
 /* ── COORDINATOR TASK ROW ── */
 interface CoordinatorTaskRowProps {
-  task: RolloutTask;
+  task: RolloutTask & { campaignTitle: string };
   orgId: string;
   onSaveSuccess: () => void;
 }
@@ -533,7 +533,10 @@ const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess }: CoordinatorTaskRowPr
   const [actualEnd, setActualEnd] = useState(
     task.actual_end_date ? new Date(task.actual_end_date).toISOString().split('T')[0] : '',
   );
+  const [remarks, setRemarks] = useState(task.tracking_comments || '');
   const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   const initialStart = task.actual_start_date
     ? new Date(task.actual_start_date).toISOString().split('T')[0]
@@ -541,21 +544,80 @@ const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess }: CoordinatorTaskRowPr
   const initialEnd = task.actual_end_date
     ? new Date(task.actual_end_date).toISOString().split('T')[0]
     : '';
+  const initialRemarks = task.tracking_comments || '';
+  const isLocked = task.task_status === 'Complete' || task.task_status === 'Closed';
 
   const hasChanges =
-    status !== task.task_status || actualStart !== initialStart || actualEnd !== initialEnd;
+    !isLocked &&
+    (status !== task.task_status ||
+      actualStart !== initialStart ||
+      actualEnd !== initialEnd ||
+      remarks !== initialRemarks);
 
   const handleSave = async () => {
+    if (isLocked) return;
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    // Validation
+    if (!actualStart) {
+      setErrorMsg('Actual start date is required');
+      return;
+    }
+    if (!actualEnd) {
+      setErrorMsg('Actual end date is required');
+      return;
+    }
+
+    if (!task.planned_start_date) {
+      setErrorMsg('Planned start date is missing for this task');
+      return;
+    }
+
+    const pStart = new Date(task.planned_start_date);
+    const pEnd = task.planned_end_date ? new Date(task.planned_end_date) : null;
+    const aStart = new Date(actualStart);
+    const aEnd = new Date(actualEnd);
+
+    // Enforce business rules:
+    // 1. planned end date should not be less than the planned start date
+    if (pEnd && pEnd < pStart) {
+      setErrorMsg('Planned end date cannot be less than planned start date');
+      return;
+    }
+
+    // 2. actual start date should not be less than planned start date
+    if (aStart < pStart) {
+      setErrorMsg('Actual start date cannot be less than planned start date');
+      return;
+    }
+
+    // 3. actual end date should not be less than actual start date
+    if (aEnd < aStart) {
+      setErrorMsg('Actual end date cannot be less than actual start date');
+      return;
+    }
+
     setSaving(true);
     try {
       await rolloutService.updateTaskForOrg(orgId, task.task_id, {
         task_status: status,
-        actual_start_date: actualStart ? new Date(actualStart).toISOString() : null,
-        actual_end_date: actualEnd ? new Date(actualEnd).toISOString() : null,
+        actual_start_date: new Date(actualStart).toISOString(),
+        actual_end_date: new Date(actualEnd).toISOString(),
+        tracking_comments: remarks.trim(),
       });
+      setSuccessMsg('Saved!');
+      setTimeout(() => setSuccessMsg(''), 3000);
       onSaveSuccess();
-    } catch (err) {
-      console.error('Failed to update task', err);
+    } catch (err: unknown) {
+      let msg = 'Failed to update task';
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { message?: string } } };
+        if (axiosError.response?.data?.message) {
+          msg = axiosError.response.data.message;
+        }
+      }
+      setErrorMsg(msg);
     } finally {
       setSaving(false);
     }
@@ -568,184 +630,158 @@ const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess }: CoordinatorTaskRowPr
   };
 
   return (
-    <tr className="hover:bg-gray-50/50">
-      <td className="px-4 py-4 align-top">
-        <p className="font-semibold text-gray-800">{task.task_name}</p>
-        {task.task_desc && (
-          <p className="mt-1 text-xs leading-relaxed text-gray-400">{task.task_desc}</p>
-        )}
-      </td>
-      <td className="px-4 py-4 align-top">
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${priorityStyles[task.task_priority] || 'bg-gray-100 text-gray-600'}`}
-        >
-          {task.task_priority}
-        </span>
-      </td>
-      <td className="px-4 py-4 align-top text-xs whitespace-nowrap text-gray-600">
-        <div className="space-y-1">
-          <p>
-            <span className="font-semibold text-gray-400">Planned Start:</span>{' '}
-            {task.planned_start_date
-              ? new Date(task.planned_start_date).toLocaleDateString('en-IN')
-              : '—'}
-          </p>
-          <p>
-            <span className="font-semibold text-gray-400">Planned End:</span>{' '}
-            {task.planned_end_date
-              ? new Date(task.planned_end_date).toLocaleDateString('en-IN')
-              : '—'}
-          </p>
-        </div>
-      </td>
-      <td className="space-y-2 px-4 py-4 align-top">
-        <div className="flex flex-col">
-          <label className="mb-1 text-[9px] font-bold tracking-wider text-gray-400 uppercase">
-            Actual Start
-          </label>
-          <input
-            type="date"
-            value={actualStart}
-            onChange={(e) => setActualStart(e.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="mb-1 text-[9px] font-bold tracking-wider text-gray-400 uppercase">
-            Actual End
-          </label>
-          <input
-            type="date"
-            value={actualEnd}
-            onChange={(e) => setActualEnd(e.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
-          />
-        </div>
-      </td>
-      <td className="px-4 py-4 align-top">
-        <select
-          value={status}
-          onChange={(e) =>
-            setStatus(e.target.value as 'Open' | 'Pending' | 'In-progress' | 'Complete' | 'Closed')
-          }
-          className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
-        >
-          <option value="Open">Open</option>
-          <option value="In-progress">In-progress</option>
-          <option value="Complete">Complete</option>
-        </select>
-      </td>
-      <td className="px-4 py-4 text-right align-top">
-        <button
-          onClick={handleSave}
-          disabled={saving || !hasChanges}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-40"
-        >
-          {saving && <Loader2 className="h-3 w-3 animate-spin" />}
-          Save
-        </button>
-      </td>
-    </tr>
-  );
-};
-
-/* ── COORDINATOR ACCORDION ── */
-interface CoordinatorRolloutAccordionProps {
-  rollout: CoordinatorRollout;
-  isOpen: boolean;
-  onToggle: () => void;
-  orgId: string;
-  onSaveSuccess: () => void;
-}
-
-const CoordinatorRolloutAccordion = ({
-  rollout,
-  isOpen,
-  onToggle,
-  orgId,
-  onSaveSuccess,
-}: CoordinatorRolloutAccordionProps) => {
-  return (
-    <div
-      className={`overflow-hidden rounded-2xl border transition-all duration-300 ${isOpen ? 'border-indigo-200 bg-indigo-50/40 shadow-md shadow-indigo-100' : 'border-gray-200 bg-white hover:border-indigo-200 hover:shadow-sm'}`}
-    >
-      <button
-        onClick={onToggle}
-        className="flex w-full items-center gap-4 px-6 py-5 text-left focus:outline-none"
-      >
-        <div
-          className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl transition ${isOpen ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'bg-indigo-100 text-indigo-600'}`}
-        >
-          <Send className="h-5 w-5" />
-        </div>
-
-        <div className="min-w-0 flex-1">
+    <>
+      <tr className={`hover:bg-gray-50/50 ${isLocked ? 'bg-gray-50/30' : ''}`}>
+        <td className="px-4 py-4 align-top">
+          <span className="text-indigo-755 mb-1 inline-block rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold">
+            {task.campaignTitle}
+          </span>
           <div className="flex items-center gap-2">
-            <p className={`text-[15px] font-bold ${isOpen ? 'text-indigo-700' : 'text-gray-900'}`}>
-              {rollout.campaign_id.title}
+            <p
+              className={`font-semibold ${isLocked ? 'text-gray-500 line-through' : 'text-gray-800'}`}
+            >
+              {task.task_name}
             </p>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-              <CheckCircle2 className="h-3 w-3" />
-              {rollout.campaign_id.status}
+            {isLocked && (
+              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-gray-500 uppercase">
+                Locked
+              </span>
+            )}
+          </div>
+          {task.task_desc && (
+            <p className="mt-1 text-xs leading-relaxed text-gray-400">{task.task_desc}</p>
+          )}
+        </td>
+        <td className="px-4 py-4 align-top">
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${priorityStyles[task.task_priority] || 'bg-gray-100 text-gray-600'}`}
+          >
+            {task.task_priority}
+          </span>
+        </td>
+        <td className="px-4 py-4 align-top text-xs whitespace-nowrap text-gray-600">
+          <div className="space-y-1">
+            <p>
+              <span className="font-semibold text-gray-400">Planned Start:</span>{' '}
+              {task.planned_start_date
+                ? new Date(task.planned_start_date).toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })
+                : '—'}
+            </p>
+            <p>
+              <span className="font-semibold text-gray-400">Planned End:</span>{' '}
+              {task.planned_end_date
+                ? new Date(task.planned_end_date).toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })
+                : '—'}
+            </p>
+          </div>
+        </td>
+        <td className="space-y-2 px-4 py-4 align-top">
+          <div className="flex flex-col">
+            <label className="mb-1 text-[9px] font-bold tracking-wider text-gray-400 uppercase">
+              Actual Start *
+            </label>
+            <input
+              type="date"
+              value={actualStart}
+              onChange={(e) => setActualStart(e.target.value)}
+              disabled={isLocked}
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 disabled:bg-gray-50 disabled:text-gray-400"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="mb-1 text-[9px] font-bold tracking-wider text-gray-400 uppercase">
+              Actual End *
+            </label>
+            <input
+              type="date"
+              value={actualEnd}
+              onChange={(e) => setActualEnd(e.target.value)}
+              disabled={isLocked}
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 disabled:bg-gray-50 disabled:text-gray-400"
+            />
+          </div>
+        </td>
+        <td className="px-4 py-4 align-top">
+          <select
+            value={status}
+            onChange={(e) =>
+              setStatus(
+                e.target.value as 'Open' | 'Pending' | 'In-progress' | 'Complete' | 'Closed',
+              )
+            }
+            disabled={isLocked}
+            className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 disabled:bg-gray-50 disabled:text-gray-400"
+          >
+            <option value="Open">Open</option>
+            <option value="Pending">Pending</option>
+            <option value="In-progress">In-progress</option>
+            <option value="Complete">Complete</option>
+            <option value="Closed">Closed</option>
+          </select>
+        </td>
+        <td className="px-4 py-4 align-top">
+          <textarea
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            disabled={isLocked}
+            placeholder={isLocked ? 'Remarks (Locked)' : 'Remarks (optional)'}
+            rows={2}
+            className="w-full resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 disabled:bg-gray-50 disabled:text-gray-400"
+          />
+        </td>
+        <td className="px-4 py-4 text-right align-top">
+          <div className="flex flex-col items-end gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving || !hasChanges || isLocked}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-40"
+            >
+              {saving && <Loader2 className="h-3 w-3 animate-spin" />}
+              Save
+            </button>
+            {successMsg && (
+              <span className="animate-fade-in text-[11px] font-semibold text-emerald-600">
+                {successMsg}
+              </span>
+            )}
+          </div>
+        </td>
+      </tr>
+      {errorMsg && (
+        <tr className="bg-red-50/40">
+          <td colSpan={7} className="text-red-650 border-t-0 px-4 py-2 text-xs font-medium">
+            <span className="inline-flex items-center gap-1.5 text-red-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+              {errorMsg}
             </span>
-          </div>
-          <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-gray-400">
-            <Clock className="h-3 w-3" />
-            Sent: {new Date(rollout.campaign_id.sentDate).toLocaleDateString('en-IN')}
-          </p>
-        </div>
-
-        <div className="hidden items-center gap-3 text-[12px] text-gray-400 sm:flex">
-          <span className="rounded-lg bg-gray-100 px-2.5 py-1 font-semibold">
-            {rollout.tasks.length} tasks
-          </span>
-          <span className="rounded-lg bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
-            {rollout.tasks.filter((t) => t.task_status === 'Complete').length} /{' '}
-            {rollout.tasks.length} completed
-          </span>
-        </div>
-
-        <ChevronDown
-          className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
-        />
-      </button>
-
-      {isOpen && (
-        <div className="border-t border-indigo-100 bg-white px-6 py-5">
-          <div className="border-gray-150 overflow-x-auto rounded-xl border">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-gray-150 border-b bg-gray-50 text-[11px] font-bold tracking-wider text-gray-500 uppercase">
-                  <th className="px-4 py-3">Task Details</th>
-                  <th className="w-32 px-4 py-3">Priority</th>
-                  <th className="w-52 px-4 py-3">Planned Dates</th>
-                  <th className="w-44 px-4 py-3">Actual Dates</th>
-                  <th className="w-36 px-4 py-3">Status</th>
-                  <th className="w-24 px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {rollout.tasks.map((task) => (
-                  <CoordinatorTaskRow
-                    key={task.task_id}
-                    task={task}
-                    orgId={orgId}
-                    onSaveSuccess={onSaveSuccess}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
 };
 
 /* ── MAIN PAGE ── */
 export const Rollout = () => {
   const { user } = useAuth();
-  const isCoordinator = user?.role_id?.name === 'Porgram_unit_coordinator';
+  const isCoordinator = useMemo(() => {
+    const roleName = (user?.role_id?.name || '').toLowerCase();
+    return (
+      roleName === 'porgram_unit_coordinator' ||
+      roleName === 'program_unit_coordinator' ||
+      roleName === 'coordinator' ||
+      roleName === 'pc'
+    );
+  }, [user]);
+
   const org = user?.member_id?.organization || user?.orgn_id;
   const orgId = org?._id;
 
@@ -815,20 +851,35 @@ export const Rollout = () => {
     [q, rollouts],
   );
 
-  const filteredCoordRollouts = useMemo(() => {
+  const allCoordinatorTasks = useMemo(() => {
     if (!isCoordinator) return [];
-    if (!q) return coordRollouts;
-    return coordRollouts.filter(
-      (cr) =>
-        cr.campaign_id.title.toLowerCase().includes(q) ||
-        cr.tasks.some(
-          (t) =>
-            t.task_name.toLowerCase().includes(q) ||
-            t.task_desc.toLowerCase().includes(q) ||
-            t.task_status.toLowerCase().includes(q),
-        ),
+    const list: Array<
+      RolloutTask & { campaignTitle: string; campaignId: string; rolloutId: string }
+    > = [];
+    coordRollouts.forEach((cr) => {
+      cr.tasks.forEach((t) => {
+        list.push({
+          ...t,
+          campaignTitle: cr.campaign_id?.title || 'Unknown Campaign',
+          campaignId: cr.campaign_id?._id,
+          rolloutId: cr._id,
+        });
+      });
+    });
+    return list;
+  }, [coordRollouts, isCoordinator]);
+
+  const filteredCoordTasks = useMemo(() => {
+    if (!isCoordinator) return [];
+    if (!q) return allCoordinatorTasks;
+    return allCoordinatorTasks.filter(
+      (t) =>
+        t.task_name.toLowerCase().includes(q) ||
+        t.task_desc.toLowerCase().includes(q) ||
+        t.task_status.toLowerCase().includes(q) ||
+        t.campaignTitle.toLowerCase().includes(q),
     );
-  }, [q, coordRollouts, isCoordinator]);
+  }, [q, allCoordinatorTasks, isCoordinator]);
 
   const handleTemplateSave = () => {
     fetchRolloutsAndTemplates();
@@ -1005,7 +1056,7 @@ export const Rollout = () => {
           <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
         </div>
       ) : isCoordinator ? (
-        filteredCoordRollouts.length === 0 ? (
+        filteredCoordTasks.length === 0 ? (
           <div className="flex flex-col items-center gap-4 rounded-2xl bg-white py-16 text-center shadow-sm">
             <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gray-100">
               <Search className="h-9 w-9 text-gray-300" />
@@ -1014,7 +1065,7 @@ export const Rollout = () => {
               </div>
             </div>
             <div>
-              <p className="text-[15px] font-semibold text-gray-800">No rollouts assigned</p>
+              <p className="text-[15px] font-semibold text-gray-800">No tasks assigned</p>
               <p className="mt-1 text-[13px] text-gray-400">
                 {searchQuery ? (
                   <>
@@ -1022,23 +1073,38 @@ export const Rollout = () => {
                     <span className="font-semibold text-gray-600">"{searchQuery}"</span>
                   </>
                 ) : (
-                  'There are no rollout campaigns assigned to your program unit.'
+                  'There are no rollout tasks assigned to your program unit.'
                 )}
               </p>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
-            {filteredCoordRollouts.map((r) => (
-              <CoordinatorRolloutAccordion
-                key={r._id}
-                rollout={r}
-                isOpen={openId === r._id}
-                onToggle={() => setOpenId((prev) => (prev === r._id ? null : r._id))}
-                orgId={orgId || ''}
-                onSaveSuccess={fetchRolloutsAndTemplates}
-              />
-            ))}
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50 text-[11px] font-bold tracking-wider text-gray-500 uppercase">
+                    <th className="px-4 py-3">Task Details</th>
+                    <th className="w-24 px-4 py-3">Priority</th>
+                    <th className="w-48 px-4 py-3">Planned Dates</th>
+                    <th className="w-40 px-4 py-3">Actual Dates</th>
+                    <th className="w-32 px-4 py-3">Status</th>
+                    <th className="w-56 px-4 py-3">Remarks</th>
+                    <th className="w-24 px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredCoordTasks.map((task) => (
+                    <CoordinatorTaskRow
+                      key={task.task_id}
+                      task={task}
+                      orgId={orgId || ''}
+                      onSaveSuccess={fetchRolloutsAndTemplates}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )
       ) : filtered.length === 0 ? (

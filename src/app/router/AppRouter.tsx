@@ -59,7 +59,9 @@ export const AppRouter = () => {
             </Route>
 
             {/* Admin (RBAC Management) */}
-            <Route element={<PermissionRoute resource="RBAC" action="READ" />}>
+            <Route
+              element={<PermissionRoute resource="RBAC" action="READ" requireSuperadmin={true} />}
+            >
               <Route path="/admin" element={<Admin />} />
             </Route>
           </Route>
