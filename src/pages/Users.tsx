@@ -70,10 +70,12 @@ const UserCard = ({ user, onClick }: { user: UserItem; onClick: () => void }) =>
           </span>
         </div>
         <p className="mt-0.5 truncate text-[12px] text-gray-500">{user.email}</p>
-        <div className="mt-1 flex items-center gap-1.5">
-          <Briefcase className="h-3 w-3 flex-shrink-0 text-gray-400" />
-          <p className="truncate text-[11px] text-gray-400">{user.designation}</p>
-        </div>
+        {user.designation && (
+          <div className="mt-1 flex items-center gap-1.5">
+            <Briefcase className="h-3 w-3 flex-shrink-0 text-gray-400" />
+            <p className="truncate text-[11px] text-gray-400">{user.designation}</p>
+          </div>
+        )}
       </div>
 
       {/* Role badge */}
@@ -125,9 +127,11 @@ const PuUserCard = ({ user, onClick }: { user: ProgramUnitUser; onClick: () => v
           <p className="truncate text-[11px] text-indigo-500">{user.unitName}</p>
         </div>
       </div>
-      <span className="hidden flex-shrink-0 rounded-lg bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold text-indigo-600 transition-colors group-hover:bg-indigo-100 sm:block">
-        {user.designation}
-      </span>
+      {user.designation && (
+        <span className="hidden flex-shrink-0 rounded-lg bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold text-indigo-600 transition-colors group-hover:bg-indigo-100 sm:block">
+          {user.designation}
+        </span>
+      )}
     </button>
   );
 };
@@ -313,12 +317,12 @@ const SearchResultCard = ({ result, onClick }: { result: SearchResult; onClick: 
               <Building2 className="h-3 w-3 flex-shrink-0 text-emerald-400" />
               <p className="truncate text-[11px] text-emerald-600">{puUser.unitName}</p>
             </>
-          ) : (
+          ) : user.designation ? (
             <>
               <Briefcase className="h-3 w-3 flex-shrink-0 text-gray-400" />
               <p className="truncate text-[11px] text-gray-400">{user.designation}</p>
             </>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -600,7 +604,7 @@ export const Users = () => {
             id: m._id,
             name: m.name,
             email: m.email,
-            designation: m.designation || m.role_id?.name || 'Programme Officer',
+            designation: m.designation || '',
             phone: m.mobile,
             department: org?.orgn_name || 'N/A',
             role: m.role_id?.name || 'Programme Officer',
@@ -639,7 +643,7 @@ export const Users = () => {
             id: m._id,
             name: m.name,
             email: m.email,
-            designation: m.designation || m.role_id?.name || 'Staff',
+            designation: m.designation || '',
             phone: m.mobile,
             department: org?.orgn_name || 'N/A',
             role: m.role_id?.name || 'User',
@@ -668,7 +672,7 @@ export const Users = () => {
             id: m._id,
             name: m.name,
             email: m.email,
-            designation: m.designation || m.role_id?.name || 'Staff',
+            designation: m.designation || '',
             phone: m.mobile,
             department: org?.orgn_name || 'N/A',
             role: m.role_id?.name || 'User',

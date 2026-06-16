@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Loader2,
   Calendar,
+  Briefcase,
 } from 'lucide-react';
 import {
   organizationService,
@@ -542,6 +543,16 @@ export const ProgramUnit = () => {
                         icon={<Building2 className="h-4 w-4" />}
                         label="Assigned Unit"
                         value={selectedUnit.orgn_name}
+                      />
+                      <InfoRow
+                        icon={<Briefcase className="h-4 w-4" />}
+                        label="Designation"
+                        value={selectedCoordinator.designation || ''}
+                      />
+                      <InfoRow
+                        icon={<User className="h-4 w-4" />}
+                        label="Role"
+                        value={selectedCoordinator.role_id?.name || ''}
                       />
 
                       {/* Action Buttons */}

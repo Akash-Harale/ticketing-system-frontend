@@ -141,7 +141,7 @@ export const ProgramUnitDetailDrawer = ({ unit, onClose }: ProgramUnitDetailDraw
               <InfoRow
                 icon={<Briefcase className="h-4 w-4" />}
                 label="Designation"
-                value={unit.coordinator.designation}
+                value={unit.coordinator.designation || ''}
               />
               <InfoRow
                 icon={<Phone className="h-4 w-4" />}
