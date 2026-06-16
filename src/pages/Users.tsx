@@ -590,8 +590,7 @@ export const Users = () => {
       const mappedPuUsers: ProgramUnitUser[] = apiMembers
         .filter((m: Member) => m.organization?.orgn_type === 'PU')
         .map((m: Member) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const org = m.organization as any;
+          const org = m.organization;
           return {
             id: m._id,
             name: m.name,
@@ -600,8 +599,14 @@ export const Users = () => {
             phone: m.mobile,
             department: org?.orgn_name || 'N/A',
             role: m.role_id?.name || 'Programme Officer',
-            state: org?.orgn_state?.state_name || 'Unknown State',
-            district: org?.orgn_district?.district_name || 'Unknown District',
+            state:
+              org?.orgn_state && typeof org.orgn_state === 'object'
+                ? org.orgn_state.state_name
+                : 'Unknown State',
+            district:
+              org?.orgn_district && typeof org.orgn_district === 'object'
+                ? org.orgn_district.district_name
+                : 'Unknown District',
             unitName: org?.orgn_name || 'Unknown Unit',
             gender: 'Other',
             joinedDate: m.joinedAt
@@ -624,8 +629,7 @@ export const Users = () => {
           return roleStr === 'NSS_Admin' || roleStr === 'NSS_User';
         })
         .map((m: Member) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const org = m.organization as any;
+          const org = m.organization;
           return {
             id: m._id,
             name: m.name,
@@ -654,8 +658,7 @@ export const Users = () => {
           return roleStr === 'PMU_Admin' || roleStr === 'PMU_User';
         })
         .map((m: Member) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const org = m.organization as any;
+          const org = m.organization;
           return {
             id: m._id,
             name: m.name,

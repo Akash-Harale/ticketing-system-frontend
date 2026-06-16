@@ -9,7 +9,7 @@ import { MainLayout } from '@/components/layouts/MainLayout';
 import { AuthLayout } from '@/components/layouts/AuthLayout';
 
 import { ProtectedRoute } from './ProtectedRoute';
-import { RoleRoute } from './RoleRoute';
+import { PermissionRoute } from './PermissionRoute';
 import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { ProgramUnit } from '@/pages/ProgramUnit';
 import { Users } from '@/pages/Users';
@@ -30,37 +30,34 @@ export const AppRouter = () => {
           <Route path="/login" element={<Login />} />
         </Route>
 
-        {/* Protected — all authenticated users */}
+        {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
+            {/* Dashboard: All authenticated users */}
             <Route path="/dashboard" element={<Dashboard />} />
-          </Route>
-        </Route>
-        <Route element={<ProtectedRoute />}>
-          <Route element={<DashboardLayout />}>
-            <Route path="/program-unit" element={<ProgramUnit />} />
-          </Route>
-        </Route>
-        <Route element={<ProtectedRoute />}>
-          <Route element={<DashboardLayout />}>
-            <Route path="/users" element={<Users />} />
-          </Route>
-        </Route>
-        <Route element={<ProtectedRoute />}>
-          <Route element={<DashboardLayout />}>
-            <Route path="/rollout" element={<Rollout />} />
-          </Route>
-        </Route>
-        <Route element={<ProtectedRoute />}>
-          <Route element={<DashboardLayout />}>
-            <Route path="/knowledge" element={<Knowledge />} />
-          </Route>
-        </Route>
 
-        {/* Protected — Superadmin only */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<RoleRoute roles={['Superadmin']} />}>
-            <Route element={<DashboardLayout />}>
+            {/* Program Unit */}
+            <Route element={<PermissionRoute resource="Program_Unit" action="READ" />}>
+              <Route path="/program-unit" element={<ProgramUnit />} />
+            </Route>
+
+            {/* User Management */}
+            <Route element={<PermissionRoute resource="Users" action="READ" />}>
+              <Route path="/users" element={<Users />} />
+            </Route>
+
+            {/* Rollout Management */}
+            <Route element={<PermissionRoute resource="Rollout" action="READ" />}>
+              <Route path="/rollout" element={<Rollout />} />
+            </Route>
+
+            {/* Knowledge Base */}
+            <Route element={<PermissionRoute resource="Mediacorner" action="READ" />}>
+              <Route path="/knowledge" element={<Knowledge />} />
+            </Route>
+
+            {/* Admin (RBAC Management) */}
+            <Route element={<PermissionRoute resource="RBAC" action="READ" />}>
               <Route path="/admin" element={<Admin />} />
             </Route>
           </Route>
