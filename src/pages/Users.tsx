@@ -23,6 +23,10 @@ import {
 import { organizationService, Member } from '../services/organization.service';
 import { UserDetailDrawer } from '../features/userManagement/components/UserDetailDrawer';
 import { AddUserModal, AddUserFormData } from '../features/userManagement/components/AddUserModal';
+import {
+  EditUserModal,
+  EditUserFormData,
+} from '../features/userManagement/components/EditUserModal';
 import { MultiSelectDropdown, MultiSelectOption } from '../components/ui/MultiSelectDropdown';
 import { StateCard } from '../features/programUnit/components/StateCard';
 import { api } from '../api/axios';
@@ -574,6 +578,7 @@ export const Users = () => {
   const [openAccordion, setOpenAccordion] = useState<string | null>('nss');
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -595,7 +600,7 @@ export const Users = () => {
             id: m._id,
             name: m.name,
             email: m.email,
-            designation: m.role_id?.name || 'Programme Officer',
+            designation: m.designation || m.role_id?.name || 'Programme Officer',
             phone: m.mobile,
             department: org?.orgn_name || 'N/A',
             role: m.role_id?.name || 'Programme Officer',
@@ -634,7 +639,7 @@ export const Users = () => {
             id: m._id,
             name: m.name,
             email: m.email,
-            designation: m.role_id?.name || 'Staff',
+            designation: m.designation || m.role_id?.name || 'Staff',
             phone: m.mobile,
             department: org?.orgn_name || 'N/A',
             role: m.role_id?.name || 'User',
@@ -663,7 +668,7 @@ export const Users = () => {
             id: m._id,
             name: m.name,
             email: m.email,
-            designation: m.role_id?.name || 'Staff',
+            designation: m.designation || m.role_id?.name || 'Staff',
             phone: m.mobile,
             department: org?.orgn_name || 'N/A',
             role: m.role_id?.name || 'User',
@@ -749,6 +754,19 @@ export const Users = () => {
     } catch (error) {
       console.error('Error adding user', error);
       alert('Failed to add user');
+    }
+  };
+
+  const handleEditUser = async (data: EditUserFormData) => {
+    if (!selectedUser) return;
+    try {
+      await api.put(`/members/${selectedUser.id}`, data);
+      setShowEditModal(false);
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating user', error);
+      alert('Failed to update user');
     }
   };
 
@@ -917,7 +935,17 @@ export const Users = () => {
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddUser}
       />
-      <UserDetailDrawer user={selectedUser} onClose={() => setSelectedUser(null)} />
+      <EditUserModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        user={selectedUser}
+        onSubmit={handleEditUser}
+      />
+      <UserDetailDrawer
+        user={selectedUser}
+        onClose={() => setSelectedUser(null)}
+        onEditClick={() => setShowEditModal(true)}
+      />
     </div>
   );
 };

@@ -43,6 +43,7 @@ export interface Member {
   mobile: string;
   role_id?: { _id: string; name: string };
   organization?: Organization;
+  designation?: string;
   active: boolean;
   joinedAt?: string;
 }
