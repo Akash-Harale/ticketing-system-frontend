@@ -14,6 +14,7 @@ import { DashboardLayout } from '@/components/layouts/DashboardLayout';
 import { ProgramUnit } from '@/pages/ProgramUnit';
 import { Users } from '@/pages/Users';
 import { Rollout } from '@/pages/Rollout';
+import { CreateRollout } from '@/pages/CreateRollout';
 import { Knowledge } from '@/pages/Knowledge';
 
 export const AppRouter = () => {
@@ -49,6 +50,7 @@ export const AppRouter = () => {
             {/* Rollout Management */}
             <Route element={<PermissionRoute resource="Rollout" action="READ" />}>
               <Route path="/rollout" element={<Rollout />} />
+              <Route path="/rollout/create" element={<CreateRollout />} />
             </Route>
 
             {/* Knowledge Base */}

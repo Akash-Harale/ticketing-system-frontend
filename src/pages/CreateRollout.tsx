@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   X,
   Send,
@@ -8,6 +9,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ArrowRight,
+  Search,
 } from 'lucide-react';
 import { locationService, State, District } from '@/services/location.service';
 import { organizationService, Organization } from '@/services/organization.service';
@@ -34,7 +36,7 @@ interface ChipSelectProps {
   disabled?: boolean;
 }
 
-const ChipSelect = ({
+export const ChipSelect = ({
   label,
   options,
   selected,
@@ -43,6 +45,7 @@ const ChipSelect = ({
   disabled,
 }: ChipSelectProps) => {
   const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const ref = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,11 +58,30 @@ const ChipSelect = ({
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
+  useEffect(() => {
+    if (!open) {
+      setSearchTerm('');
+    }
+  }, [open]);
+
   const toggle = (v: string) => {
     onChange(selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
   };
-  const allSelected = options.length > 0 && selected.length === options.length;
-  const toggleAll = () => onChange(allSelected ? [] : [...options]);
+
+  const filteredOptions = useMemo(() => {
+    return options.filter((opt) => opt.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [options, searchTerm]);
+
+  const allSelected =
+    filteredOptions.length > 0 && filteredOptions.every((opt) => selected.includes(opt));
+
+  const toggleAll = () => {
+    if (allSelected) {
+      onChange(selected.filter((x) => !filteredOptions.includes(x)));
+    } else {
+      onChange([...new Set([...selected, ...filteredOptions])]);
+    }
+  };
 
   return (
     <div ref={ref} className="relative mb-4">
@@ -109,39 +131,61 @@ const ChipSelect = ({
 
       {/* Options panel */}
       {open && (
-        <div className="absolute right-0 left-0 z-30 mt-1 max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
-          {/* Select all */}
-          <button
-            type="button"
-            onClick={toggleAll}
-            className="flex w-full items-center gap-2.5 border-b border-gray-100 px-3.5 py-2.5 text-[12px] font-semibold text-indigo-600 transition hover:bg-indigo-50"
-          >
-            <div
-              className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-2 transition ${allSelected ? 'border-indigo-600 bg-indigo-600' : 'border-gray-300'}`}
-            >
-              {allSelected && <CheckCircle2 className="h-3 w-3 text-white" />}
+        <div className="absolute right-0 left-0 z-30 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
+          {/* Search Input */}
+          <div className="sticky top-0 z-10 border-b border-gray-100 bg-white p-2">
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 transition focus-within:border-indigo-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-100">
+              <Search className="h-3.5 w-3.5 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search options..."
+                className="w-full bg-transparent text-xs text-gray-700 placeholder-gray-400 outline-none"
+              />
             </div>
-            Select All
-          </button>
+          </div>
 
-          {options.map((opt) => {
-            const sel = selected.includes(opt);
-            return (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => toggle(opt)}
-                className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-sm transition hover:bg-indigo-50 ${sel ? 'bg-indigo-50/50 font-medium text-indigo-700' : 'text-gray-700'}`}
+          {/* Select all */}
+          {filteredOptions.length > 0 && (
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="flex w-full items-center gap-2.5 border-b border-gray-100 px-3.5 py-2.5 text-[12px] font-semibold text-indigo-600 transition hover:bg-indigo-50"
+            >
+              <div
+                className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-2 transition ${allSelected ? 'border-indigo-600 bg-indigo-600' : 'border-gray-300'}`}
               >
-                <div
-                  className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-2 transition ${sel ? 'border-indigo-600 bg-indigo-600' : 'border-gray-300'}`}
+                {allSelected && <CheckCircle2 className="h-3 w-3 text-white" />}
+              </div>
+              Select All ({filteredOptions.length})
+            </button>
+          )}
+
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((opt) => {
+              const sel = selected.includes(opt);
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => toggle(opt)}
+                  className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-sm transition hover:bg-indigo-50 ${sel ? 'bg-indigo-50/50 font-medium text-indigo-700' : 'text-gray-700'}`}
                 >
-                  {sel && <CheckCircle2 className="h-3 w-3 text-white" />}
-                </div>
-                {opt}
-              </button>
-            );
-          })}
+                  <div
+                    className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-2 transition ${sel ? 'border-indigo-600 bg-indigo-600' : 'border-gray-300'}`}
+                  >
+                    {sel && <CheckCircle2 className="h-3 w-3 text-white" />}
+                  </div>
+                  {opt}
+                </button>
+              );
+            })
+          ) : (
+            <div className="py-4 text-center text-xs text-gray-400 italic">
+              No options match your search.
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -154,13 +198,24 @@ const unitTypeBadge = (role: string) => {
   return 'bg-emerald-100 text-emerald-700';
 };
 
-interface Props {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: () => void;
+interface RolloutConfigTask {
+  task_name: string;
+  task_desc: string;
+  task_priority: 'High' | 'Medium' | 'Low';
+  planned_start_date: string;
+  planned_end_date: string;
 }
 
-export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
+export const CreateRollout = ({
+  onSuccess,
+  onCancel,
+  isEmbedded = false,
+}: {
+  onSuccess?: () => void;
+  onCancel?: () => void;
+  isEmbedded?: boolean;
+}) => {
+  const navigate = useNavigate();
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
   const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
   const [title, setTitle] = useState('');
@@ -170,21 +225,23 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
   const [allDistricts, setAllDistricts] = useState<District[]>([]);
   const [allOrgs, setAllOrgs] = useState<Organization[]>([]);
 
+  const [step, setStep] = useState(1);
+  const [tasks, setTasks] = useState<RolloutConfigTask[]>([]);
+  const [errorMsg, setErrorMsg] = useState('');
+
   useEffect(() => {
-    if (isOpen) {
-      locationService
-        .getStates()
-        .then(setDbStates)
-        .catch(() => {});
-      organizationService
-        .getAll()
-        .then((res) => {
-          const pus = (res.data || []).filter((o) => o.orgn_type === 'PU');
-          setAllOrgs(pus);
-        })
-        .catch(() => {});
-    }
-  }, [isOpen]);
+    locationService
+      .getStates()
+      .then(setDbStates)
+      .catch(() => {});
+    organizationService
+      .getAll()
+      .then((res) => {
+        const pus = (res.data || []).filter((o) => o.orgn_type === 'PU');
+        setAllOrgs(pus);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (selectedStates.length === 0) {
@@ -227,20 +284,8 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
       }));
   }, [selectedStates, selectedDistricts, allOrgs]);
 
-  interface RolloutConfigTask {
-    task_name: string;
-    task_desc: string;
-    task_priority: 'High' | 'Medium' | 'Low';
-    planned_start_date: string;
-    planned_end_date: string;
-  }
-
-  const [step, setStep] = useState(1);
-  const [tasks, setTasks] = useState<RolloutConfigTask[]>([]);
-
   const handleStateChange = (states: string[]) => {
     setSelectedStates(states);
-    // drop districts that no longer belong to selected states
     const validDistricts = [...new Set(allDistricts.map((d) => d.district_name))];
     setSelectedDistricts((prev) => prev.filter((d) => validDistricts.includes(d)));
   };
@@ -271,6 +316,7 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
     e.preventDefault();
     if (!title.trim() || selectedStates.length === 0 || selectedDistricts.length === 0) return;
     setLoading(true);
+    setErrorMsg('');
     try {
       await rolloutService.createRollout({
         title: title.trim(),
@@ -286,26 +332,24 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
           planned_end_date: t.planned_end_date ? new Date(t.planned_end_date).toISOString() : null,
         })),
       });
-      onSubmit();
-      reset();
-    } catch (err) {
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate('/rollout');
+      }
+    } catch (err: unknown) {
+      let msg = 'Failed to broadcast rollout campaign. Please try again.';
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { message?: string } } };
+        if (axiosError.response?.data?.message) {
+          msg = axiosError.response.data.message;
+        }
+      }
+      setErrorMsg(msg);
       console.error('Failed to broadcast rollout', err);
     } finally {
       setLoading(false);
     }
-  };
-
-  const reset = () => {
-    setSelectedStates([]);
-    setSelectedDistricts([]);
-    setTitle('');
-    setTasks([]);
-    setStep(1);
-  };
-
-  const handleClose = () => {
-    reset();
-    onClose();
   };
 
   const updateTaskPriority = (index: number, priority: 'High' | 'Medium' | 'Low') => {
@@ -322,44 +366,49 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
     setTasks((prev) => prev.map((t, idx) => (idx === index ? { ...t, [field]: val } : t)));
   };
 
-  if (!isOpen) return null;
-
-  return (
+  const formContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
+      className={`mx-auto w-full ${step === 2 ? 'max-w-6xl' : 'max-w-2xl'} transition-all duration-300`}
     >
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
-      <div
-        className={`relative z-10 max-h-[90vh] w-full ${step === 2 ? 'max-w-4xl' : 'max-w-lg'} overflow-y-auto rounded-2xl bg-white shadow-2xl transition-all duration-300`}
-      >
+      {/* Card Box */}
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4">
+        <div className="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600">
-              <Send className="h-4 w-4 text-white" />
+            <div className="shadow-indigo-150 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md">
+              <Send className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-[15px] font-semibold text-gray-900">
-                {step === 2 ? 'Configure Rollout Tasks' : 'Create Rollout'}
+              <h2 className="text-base font-bold text-gray-900">
+                {step === 2 ? 'Configure Rollout Tasks' : 'New Rollout Campaign'}
               </h2>
-              <p className="text-[12px] text-gray-500">
+              <p className="mt-0.5 text-xs text-gray-500">
                 {step === 2
-                  ? 'Set priorities and planned dates for the rollout tasks'
-                  : 'Select states, districts &amp; preview units'}
+                  ? 'Set task priorities and planned start/end dates for this campaign'
+                  : 'Specify the campaign title, state/district scopes and preview target units'}
               </p>
             </div>
           </div>
           <button
-            onClick={handleClose}
-            className="rounded-full p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+            type="button"
+            onClick={() => {
+              if (onCancel) onCancel();
+              else navigate('/rollout');
+            }}
+            className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-50"
           >
-            <X className="h-4 w-4" />
+            Cancel
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-5">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="px-6 py-6">
+          {errorMsg && (
+            <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 p-3 text-xs text-red-800">
+              <X className="h-4 w-4 flex-shrink-0 text-red-500" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
           {step === 1 ? (
             <>
               {/* Rollout title */}
@@ -371,7 +420,7 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
-                  placeholder="e.g. Rollout - 5"
+                  placeholder="e.g. Rollout Campaign - Phase 1"
                   className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm transition outline-none hover:border-gray-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
@@ -405,7 +454,7 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
                       <Building2 className="h-3.5 w-3.5" />
                     </span>
                     <p className="text-[11px] font-semibold tracking-widest text-gray-500 uppercase">
-                      Program Units
+                      Program Units Preview
                     </p>
                     <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-600">
                       {units.length}
@@ -416,18 +465,18 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
                     <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-gray-200 py-8 text-center">
                       <Building2 className="h-7 w-7 text-gray-300" />
                       <p className="text-sm text-gray-400">
-                        No program units in the selected districts.
+                        No program units found in selected districts.
                       </p>
                     </div>
                   ) : (
-                    <div className="flex max-h-48 flex-col gap-2 overflow-y-auto pr-1">
+                    <div className="flex max-h-56 flex-col gap-2 overflow-y-auto pr-1">
                       {units.map((u) => (
                         <div
                           key={u.id}
                           className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3"
                         >
-                          {/* Avatar */}
                           <div
+                            key={u.id}
                             className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${u.avatarColor} text-[12px] font-bold text-white shadow-sm`}
                           >
                             {u.avatarInitials}
@@ -457,8 +506,8 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
           ) : (
             <div className="flex flex-col gap-4">
               <p className="mb-2 text-xs text-gray-500">
-                The tasks below are loaded from the Master Template. Changes to priority or dates
-                here will only apply to this rollout.
+                Configure priorities and planned dates for the tasks below. These changes apply
+                strictly to this rollout.
               </p>
               <div className="border-gray-150 overflow-x-auto rounded-xl border">
                 <table className="w-full border-collapse text-left">
@@ -466,14 +515,13 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
                     <tr className="border-gray-150 border-b bg-gray-50 text-[11px] font-bold tracking-wider text-gray-500 uppercase">
                       <th className="px-4 py-3">Task Details</th>
                       <th className="w-32 px-4 py-3">Priority</th>
-                      <th className="w-44 px-4 py-3">Planned Dates</th>
-                      <th className="w-36 px-4 py-3">Actual Dates</th>
+                      <th className="px-4 py-3">Planned Dates</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {tasks.map((task, i) => (
                       <tr key={i} className="text-sm hover:bg-gray-50/50">
-                        <td className="px-4 py-4 align-top">
+                        <td className="px-4 py-4 align-middle">
                           <p className="font-semibold text-gray-800">{task.task_name}</p>
                           {task.task_desc && (
                             <p className="mt-1 text-xs leading-relaxed text-gray-400">
@@ -481,7 +529,7 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
                             </p>
                           )}
                         </td>
-                        <td className="px-4 py-4 align-top">
+                        <td className="px-4 py-4 align-middle">
                           <select
                             value={task.task_priority}
                             onChange={(e) =>
@@ -494,36 +542,35 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
                             <option value="High">High</option>
                           </select>
                         </td>
-                        <td className="space-y-2 px-4 py-4 align-top">
-                          <div className="flex flex-col">
-                            <label className="mb-1 text-[9px] font-bold tracking-wider text-gray-400 uppercase">
-                              Start Date
-                            </label>
-                            <input
-                              type="date"
-                              value={task.planned_start_date}
-                              onChange={(e) =>
-                                updateTaskDate(i, 'planned_start_date', e.target.value)
-                              }
-                              className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
-                            />
+                        <td className="px-4 py-4 align-middle">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-bold tracking-wider text-gray-400 uppercase">
+                                Start:
+                              </span>
+                              <input
+                                type="date"
+                                value={task.planned_start_date}
+                                onChange={(e) =>
+                                  updateTaskDate(i, 'planned_start_date', e.target.value)
+                                }
+                                className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
+                              />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-bold tracking-wider text-gray-400 uppercase">
+                                End:
+                              </span>
+                              <input
+                                type="date"
+                                value={task.planned_end_date}
+                                onChange={(e) =>
+                                  updateTaskDate(i, 'planned_end_date', e.target.value)
+                                }
+                                className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
+                              />
+                            </div>
                           </div>
-                          <div className="flex flex-col">
-                            <label className="mb-1 text-[9px] font-bold tracking-wider text-gray-400 uppercase">
-                              End Date
-                            </label>
-                            <input
-                              type="date"
-                              value={task.planned_end_date}
-                              onChange={(e) =>
-                                updateTaskDate(i, 'planned_end_date', e.target.value)
-                              }
-                              className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
-                            />
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 align-top text-xs text-gray-400 italic">
-                          Not started yet
                         </td>
                       </tr>
                     ))}
@@ -533,12 +580,19 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
             </div>
           )}
 
-          {/* Actions */}
-          <div className="mt-5 flex justify-end gap-3 border-t border-gray-100 pt-4">
+          {/* Form Actions */}
+          <div className="mt-6 flex justify-end gap-3 border-t border-gray-100 pt-5">
             <button
               type="button"
-              onClick={step === 2 ? () => setStep(1) : handleClose}
-              className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+              onClick={
+                step === 2
+                  ? () => setStep(1)
+                  : () => {
+                      if (onCancel) onCancel();
+                      else navigate('/rollout');
+                    }
+              }
+              className="text-gray-650 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium transition hover:bg-gray-50"
             >
               {step === 2 ? 'Back' : 'Cancel'}
             </button>
@@ -552,20 +606,20 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
                   selectedDistricts.length === 0 ||
                   !title.trim()
                 }
-                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
               >
                 {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {loading ? 'Loading…' : 'Next'}
+                {loading ? 'Loading…' : 'Configure Tasks'}
                 <ArrowRight className="h-4 w-4" />
               </button>
             ) : (
               <button
                 type="submit"
                 disabled={loading}
-                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
               >
                 {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {loading ? 'Creating…' : 'Create Rollout'}
+                {loading ? 'Creating…' : 'Create Campaign'}
               </button>
             )}
           </div>
@@ -573,4 +627,10 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
       </div>
     </div>
   );
+
+  if (isEmbedded) {
+    return formContent;
+  }
+
+  return <div className="min-h-screen bg-gray-50 py-6">{formContent}</div>;
 };
