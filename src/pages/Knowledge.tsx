@@ -365,7 +365,7 @@ export const Knowledge = () => {
               </button>
             )}
 
-            {user?.role_id?.name === 'Superadmin' && (
+            {user?.role_id?.name?.toLowerCase() === 'superadmin' && (
               <button
                 onClick={() => setShowAddModal(true)}
                 className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md active:scale-95"
