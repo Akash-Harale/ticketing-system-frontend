@@ -1,14 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  Package,
-  Users,
-  GitBranch,
-  BookOpen,
-  ShieldCheck,
-  Ticket,
-  X,
-} from 'lucide-react';
+import { LayoutDashboard, Package, Users, GitBranch, BookOpen, ShieldCheck, X } from 'lucide-react';
 import { useAuth } from '@/context/auth/useAuth';
 
 interface SidebarProps {
@@ -83,13 +74,8 @@ export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
         }`}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between border-b border-gray-800 px-5 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
-              <Ticket className="h-4 w-4 text-white" />
-            </div>
-            <span className="text-[15px] font-semibold tracking-wide text-white">NSS Portal</span>
-          </div>
+        <div className="flex items-center justify-between border-b border-gray-800 px-6">
+          <img src="./logo.png" alt="Company Logo" className="h-16 w-48" />
 
           {/* Close Button for mobile */}
           <button
