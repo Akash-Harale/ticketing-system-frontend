@@ -75,7 +75,9 @@ export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
       >
         {/* Logo */}
         <div className="flex items-center justify-between border-b border-gray-800 px-6">
-          <img src="./logo.png" alt="Company Logo" className="h-16 w-48" />
+          <Link to="/" className="flex cursor-pointer items-center justify-center py-2">
+            <img src="./logo.png" alt="Company Logo" className="h-16 w-48 object-contain" />
+          </Link>
 
           {/* Close Button for mobile */}
           <button
