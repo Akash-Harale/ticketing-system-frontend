@@ -16,6 +16,7 @@ import { UserItem } from '../data/userManagementData';
 interface UserDetailDrawerProps {
   user: UserItem | null;
   onClose: () => void;
+  onEditClick?: () => void;
 }
 
 const InfoRow = ({
@@ -38,7 +39,7 @@ const InfoRow = ({
   </div>
 );
 
-export const UserDetailDrawer = ({ user, onClose }: UserDetailDrawerProps) => {
+export const UserDetailDrawer = ({ user, onClose, onEditClick }: UserDetailDrawerProps) => {
   if (!user) return null;
 
   const statusClass =
@@ -132,23 +133,34 @@ export const UserDetailDrawer = ({ user, onClose }: UserDetailDrawerProps) => {
           />
 
           {/* Action Buttons */}
-          <div className="mt-6 flex gap-3">
-            <a
-              href={`tel:${user.phone}`}
-              id={`user-call-${user.id}`}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
-            >
-              <Phone className="h-4 w-4" />
-              Call
-            </a>
-            <a
-              href={`mailto:${user.email}`}
-              id={`user-email-${user.id}`}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
-            >
-              <Mail className="h-4 w-4" />
-              Email
-            </a>
+          <div className="mt-6 flex flex-col gap-3">
+            <div className="flex gap-3">
+              <a
+                href={`tel:${user.phone}`}
+                id={`user-call-${user.id}`}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
+              >
+                <Phone className="h-4 w-4" />
+                Call
+              </a>
+              <a
+                href={`mailto:${user.email}`}
+                id={`user-email-${user.id}`}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
+              >
+                <Mail className="h-4 w-4" />
+                Email
+              </a>
+            </div>
+            {onEditClick && (
+              <button
+                id={`user-edit-${user.id}`}
+                onClick={onEditClick}
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                Edit User Details
+              </button>
+            )}
           </div>
         </div>
       </aside>

@@ -199,6 +199,7 @@ const unitTypeBadge = (role: string) => {
 };
 
 interface RolloutConfigTask {
+  task_id: string;
   task_name: string;
   task_desc: string;
   task_priority: 'High' | 'Medium' | 'Low';
@@ -219,6 +220,8 @@ export const CreateRollout = ({
   const [selectedStates, setSelectedStates] = useState<string[]>([]);
   const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
   const [title, setTitle] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [loading, setLoading] = useState(false);
 
   const [dbStates, setDbStates] = useState<State[]>([]);
@@ -291,12 +294,25 @@ export const CreateRollout = ({
   };
 
   const handleNextStep = async () => {
-    if (!title.trim() || selectedStates.length === 0 || selectedDistricts.length === 0) return;
+    if (
+      !title.trim() ||
+      selectedStates.length === 0 ||
+      selectedDistricts.length === 0 ||
+      !startDate ||
+      !endDate
+    )
+      return;
+    if (new Date(endDate) < new Date(startDate)) {
+      setErrorMsg('End Date cannot be earlier than Start Date.');
+      return;
+    }
     setLoading(true);
+    setErrorMsg('');
     try {
       const masterTasks = await rolloutService.getMasterTemplates();
       setTasks(
-        masterTasks.map((t) => ({
+        masterTasks.map((t, idx) => ({
+          task_id: (idx + 1).toString(),
           task_name: t.task_name,
           task_desc: t.task_desc || '',
           task_priority: t.priority || 'Low',
@@ -314,7 +330,22 @@ export const CreateRollout = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || selectedStates.length === 0 || selectedDistricts.length === 0) return;
+    if (
+      !title.trim() ||
+      selectedStates.length === 0 ||
+      selectedDistricts.length === 0 ||
+      !startDate ||
+      !endDate
+    )
+      return;
+
+    const campaignStart = new Date(startDate);
+    const campaignEnd = new Date(endDate);
+
+    if (campaignEnd < campaignStart) {
+      setErrorMsg('End Date cannot be earlier than Start Date.');
+      return;
+    }
 
     // Validate that planned start and end dates are specified and valid
     for (let i = 0; i < tasks.length; i++) {
@@ -335,6 +366,18 @@ export const CreateRollout = ({
         );
         return;
       }
+      if (start < campaignStart) {
+        setErrorMsg(
+          `For task "${t.task_name}", Planned Start Date must be on or after the rollout start date.`,
+        );
+        return;
+      }
+      if (end > campaignEnd) {
+        setErrorMsg(
+          `For task "${t.task_name}", Planned End Date must be on or before the rollout end date.`,
+        );
+        return;
+      }
     }
 
     setLoading(true);
@@ -344,7 +387,10 @@ export const CreateRollout = ({
         title: title.trim(),
         states: selectedStates,
         districts: selectedDistricts,
+        start_date: new Date(startDate).toISOString(),
+        end_date: new Date(endDate).toISOString(),
         tasks: tasks.map((t) => ({
+          task_id: t.task_id,
           task_name: t.task_name,
           task_desc: t.task_desc || undefined,
           task_priority: t.task_priority,
@@ -384,6 +430,10 @@ export const CreateRollout = ({
     val: string,
   ) => {
     setTasks((prev) => prev.map((t, idx) => (idx === index ? { ...t, [field]: val } : t)));
+  };
+
+  const updateTaskDesc = (index: number, val: string) => {
+    setTasks((prev) => prev.map((t, idx) => (idx === index ? { ...t, task_desc: val } : t)));
   };
 
   const formContent = (
@@ -443,6 +493,34 @@ export const CreateRollout = ({
                   placeholder="e.g. Rollout Campaign - Phase 1"
                   className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm transition outline-none hover:border-gray-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                 />
+              </div>
+
+              {/* Start Date and End Date */}
+              <div className="mb-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Start Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    required
+                    className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm transition outline-none hover:border-gray-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    End Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    required
+                    className="w-full rounded-lg border border-gray-200 px-3.5 py-2.5 text-sm transition outline-none hover:border-gray-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
               </div>
 
               {/* States multi-select */}
@@ -542,12 +620,14 @@ export const CreateRollout = ({
                     {tasks.map((task, i) => (
                       <tr key={i} className="text-sm hover:bg-gray-50/50">
                         <td className="px-4 py-4 align-middle">
-                          <p className="font-semibold text-gray-800">{task.task_name}</p>
-                          {task.task_desc && (
-                            <p className="mt-1 text-xs leading-relaxed text-gray-400">
-                              {task.task_desc}
-                            </p>
-                          )}
+                          <p className="mb-1 font-semibold text-gray-800">{task.task_name}</p>
+                          <input
+                            type="text"
+                            value={task.task_desc || ''}
+                            onChange={(e) => updateTaskDesc(i, e.target.value)}
+                            placeholder="Add task description..."
+                            className="text-gray-650 w-full rounded-lg border border-gray-200 px-2.5 py-1 text-xs transition outline-none hover:border-gray-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
+                          />
                         </td>
                         <td className="px-4 py-4 align-middle">
                           <select

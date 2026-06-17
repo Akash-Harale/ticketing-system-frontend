@@ -16,6 +16,7 @@ import { Tab, TabItem } from '../components/ui/Tab';
 import { Accordion } from '../components/ui/Accordion';
 import { useAuth } from '../context/auth/useAuth';
 import { api } from '../api/axios';
+import { env } from '../config/env';
 import { AddKnowledgeModal } from '../features/knowledge/components/AddKnowledgeModal';
 
 interface FAQItem {
@@ -29,6 +30,7 @@ interface PDFItem {
   title: string;
   description: string;
   url: string;
+  filename?: string;
 }
 
 interface VideoItem {
@@ -46,11 +48,12 @@ interface TemplateItem {
 
 interface MediaItem {
   _id: string;
-  media_type: 'faq' | 'document' | 'video' | 'template';
+  media_type: 'faq' | 'document' | 'video' | 'template' | 'pdf';
   media_header: string;
   media_narration: string;
   media_file_url?: string;
   media_url?: string;
+  media_file?: string;
 }
 
 const TABS: TabItem[] = [
@@ -122,7 +125,16 @@ const PdfSection = ({ query, items }: { query: string; items: PDFItem[] }) => {
               <div className="flex gap-2">
                 <button
                   id={`pdf-preview-${pdf.id}`}
-                  onClick={() => pdf.url && window.open(pdf.url, '_blank')}
+                  onClick={() => {
+                    if (pdf.filename) {
+                      window.open(
+                        `${env.apiUrl}/mediacorner/asset?media=${pdf.filename}`,
+                        '_blank',
+                      );
+                    } else if (pdf.url) {
+                      window.open(pdf.url, '_blank');
+                    }
+                  }}
                   className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 transition hover:border-indigo-300 hover:text-indigo-600"
                 >
                   <Eye className="h-3 w-3" />
@@ -130,7 +142,16 @@ const PdfSection = ({ query, items }: { query: string; items: PDFItem[] }) => {
                 </button>
                 <button
                   id={`pdf-download-${pdf.id}`}
-                  onClick={() => pdf.url && window.open(pdf.url, '_blank')}
+                  onClick={() => {
+                    if (pdf.filename) {
+                      window.open(
+                        `${env.apiUrl}/mediacorner/asset?media=${pdf.filename}`,
+                        '_blank',
+                      );
+                    } else if (pdf.url) {
+                      window.open(pdf.url, '_blank');
+                    }
+                  }}
                   className="flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs text-white transition hover:bg-indigo-700"
                 >
                   <FileDown className="h-3 w-3" />
@@ -178,7 +199,7 @@ const VideoSection = ({ query, items }: { query: string; items: VideoItem[] }) =
               <button
                 id={`vid-watch-${vid.id}`}
                 onClick={() => vid.url && window.open(vid.url, '_blank')}
-                className="mt-2 flex w-fit items-center gap-1.5 text-xs font-medium text-indigo-600 transition hover:text-indigo-800"
+                className="mt-2 flex w-fit cursor-pointer items-center gap-1.5 text-xs font-medium text-indigo-600 transition hover:text-indigo-800"
               >
                 Watch now <ExternalLink className="h-3 w-3" />
               </button>
@@ -274,12 +295,13 @@ export const Knowledge = () => {
         .filter((i) => i.media_type === 'faq')
         .map((i) => ({ id: i._id, question: i.media_header, answer: i.media_narration }));
       const pdf = items
-        .filter((i) => i.media_type === 'document')
+        .filter((i) => i.media_type === 'document' || i.media_type === 'pdf')
         .map((i) => ({
           id: i._id,
           title: i.media_header,
           description: i.media_narration,
           url: i.media_file_url || i.media_url || '',
+          filename: i.media_file || '',
         }));
       const videos = items
         .filter((i) => i.media_type === 'video')

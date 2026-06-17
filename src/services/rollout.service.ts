@@ -12,6 +12,10 @@ export interface InstituteEntry {
   id: string;
   name: string;
   type: string;
+  rolloutId?: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  tasks?: RolloutTask[];
 }
 
 export interface DistrictEntry {
@@ -32,6 +36,8 @@ export interface RolloutCampaign {
   templateName: string;
   sentDate: string;
   status: 'Active' | 'Completed' | 'Draft';
+  start_date?: string | null;
+  end_date?: string | null;
   totalStates: number;
   totalInstitutes: number;
   states: StateEntry[];
@@ -48,7 +54,7 @@ export interface RolloutTask {
   planned_end_date?: string | null;
   actual_start_date?: string | null;
   actual_end_date?: string | null;
-  task_status: 'Open' | 'Pending' | 'In-progress' | 'Complete' | 'Closed';
+  task_status: 'Open' | 'Pending' | 'In-progress' | 'Complete' | 'Closed' | 'Reopened';
   tracking_comments?: string;
 }
 
@@ -86,7 +92,10 @@ export const rolloutService = {
     title: string;
     states: string[];
     districts: string[];
+    start_date?: string | null;
+    end_date?: string | null;
     tasks?: Array<{
+      task_id: string;
       task_name: string;
       task_desc?: string;
       task_priority: 'High' | 'Medium' | 'Low';
@@ -95,6 +104,42 @@ export const rolloutService = {
     }>;
   }): Promise<unknown> => {
     const { data } = await api.post<ApiResponse<unknown>>('/rollouts', payload);
+    return data.data;
+  },
+
+  updateRollout: async (
+    id: string,
+    payload: { start_date?: string | null; end_date?: string | null },
+  ): Promise<unknown> => {
+    const { data } = await api.put<ApiResponse<unknown>>(`/rollouts/${id}`, payload);
+    return data.data;
+  },
+
+  updateCampaign: async (
+    campaignId: string,
+    payload: {
+      title?: string;
+      start_date?: string | null;
+      end_date?: string | null;
+      tasks?: Array<{
+        task_id: string;
+        task_name: string;
+        task_desc?: string;
+        task_priority: 'High' | 'Medium' | 'Low';
+        planned_start_date?: string | null;
+        planned_end_date?: string | null;
+      }>;
+    },
+  ): Promise<unknown> => {
+    const { data } = await api.put<ApiResponse<unknown>>(
+      `/rollouts/campaign/${campaignId}`,
+      payload,
+    );
+    return data.data;
+  },
+
+  deleteRollout: async (id: string): Promise<unknown> => {
+    const { data } = await api.delete<ApiResponse<unknown>>(`/rollouts/${id}`);
     return data.data;
   },
 
