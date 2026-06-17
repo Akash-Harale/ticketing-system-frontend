@@ -1,14 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  Package,
-  Users,
-  GitBranch,
-  BookOpen,
-  ShieldCheck,
-  Ticket,
-  X,
-} from 'lucide-react';
+import { LayoutDashboard, Package, Users, GitBranch, BookOpen, ShieldCheck, X } from 'lucide-react';
 import { useAuth } from '@/context/auth/useAuth';
 
 interface SidebarProps {
@@ -23,7 +14,7 @@ export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
 
   const hasPermission = (resource: string, action: string) => {
     if (!user) return false;
-    if (user.role_id?.name === 'Superadmin') return true;
+    if (user.role_id?.name?.toLowerCase() === 'superadmin') return true;
     return user.role_id?.privileges?.some(
       (p) =>
         p.resource?.name?.toLowerCase() === resource.toLowerCase() &&
@@ -57,7 +48,12 @@ export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
       icon: BookOpen,
       visible: hasPermission('Mediacorner', 'READ'),
     },
-    { label: 'Admin', to: '/admin', icon: ShieldCheck, visible: hasPermission('RBAC', 'READ') },
+    {
+      label: 'Admin',
+      to: '/admin',
+      icon: ShieldCheck,
+      visible: user?.role_id?.name?.toLowerCase() === 'superadmin',
+    },
   ].filter((item) => item.visible);
 
   const initial = user?.email?.charAt(0).toUpperCase() ?? '?';
@@ -78,13 +74,8 @@ export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
         }`}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between border-b border-gray-800 px-5 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600">
-              <Ticket className="h-4 w-4 text-white" />
-            </div>
-            <span className="text-[15px] font-semibold tracking-wide text-white">NSS Portal</span>
-          </div>
+        <div className="flex items-center justify-between border-b border-gray-800 px-6">
+          <img src="./logo.png" alt="Company Logo" className="h-16 w-48" />
 
           {/* Close Button for mobile */}
           <button

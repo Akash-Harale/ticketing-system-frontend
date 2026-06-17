@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, ChevronDown, Loader2, Building2, User } from 'lucide-react';
+import { X, Save, ChevronDown, Loader2, Building2, User } from 'lucide-react';
+import { UserItem } from '../data/userManagementData';
+import { api } from '@/api/axios';
+import { Organization } from '@/services/organization.service';
 
-/* ─────────────────────────────────────────────
-   TYPES
-───────────────────────────────────────────── */
-
-export interface AddUserFormData {
+export interface EditUserFormData {
   organization: string;
   name: string;
   email: string;
@@ -14,10 +13,11 @@ export interface AddUserFormData {
   designation: string;
 }
 
-interface AddUserModalProps {
+interface EditUserModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: AddUserFormData) => void;
+  user: UserItem | null;
+  onSubmit: (data: EditUserFormData) => void;
 }
 
 interface FormSelectObjectProps {
@@ -97,10 +97,6 @@ const FormInput = ({ label, error, id, ...props }: FormInputProps) => (
   </div>
 );
 
-/* ─────────────────────────────────────────────
-   SECTION HEADER
-───────────────────────────────────────────── */
-
 const SectionHeader = ({ icon, title }: { icon: React.ReactNode; title: string }) => (
   <div className="mb-4 flex items-center gap-2.5 border-b border-gray-100 pb-3">
     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white">
@@ -110,36 +106,24 @@ const SectionHeader = ({ icon, title }: { icon: React.ReactNode; title: string }
   </div>
 );
 
-/* ─────────────────────────────────────────────
-   EMPTY FORM
-───────────────────────────────────────────── */
+export const EditUserModal = ({ isOpen, onClose, user, onSubmit }: EditUserModalProps) => {
+  const [form, setForm] = useState<EditUserFormData>({
+    organization: '',
+    name: '',
+    email: '',
+    mobile: '',
+    role_id: '',
+    designation: '',
+  });
 
-const EMPTY: AddUserFormData = {
-  organization: '',
-  name: '',
-  email: '',
-  mobile: '',
-  role_id: '',
-  designation: '',
-};
-
-/* ─────────────────────────────────────────────
-   MODAL
-───────────────────────────────────────────── */
-import { api } from '@/api/axios';
-import { Organization } from '@/services/organization.service';
-
-export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) => {
-  const [form, setForm] = useState<AddUserFormData>(EMPTY);
-  const [errors, setErrors] = useState<Partial<Record<keyof AddUserFormData, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof EditUserFormData, string>>>({});
   const [loading, setLoading] = useState(false);
-
   const [orgs, setOrgs] = useState<{ label: string; value: string }[]>([]);
   const [roles, setRoles] = useState<{ label: string; value: string }[]>([]);
 
+  // Fetch roles and orgs
   useEffect(() => {
     if (isOpen) {
-      // Fetch organizations
       api
         .get('/organizations')
         .then((res) => {
@@ -154,7 +138,6 @@ export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) =
         })
         .catch(console.error);
 
-      // Fetch roles
       api
         .get('/rbac/roles')
         .then((res) => {
@@ -174,7 +157,42 @@ export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) =
     }
   }, [isOpen]);
 
-  const setField = (field: keyof AddUserFormData) => (value: string) => {
+  // Prepopulate form when user opens the modal
+  useEffect(() => {
+    if (isOpen && user) {
+      // Find matching role ID and organization ID from API response
+      // But we can fetch member details directly to get raw MongoDB object IDs
+      api
+        .get(`/members/${user.id}`)
+        .then((res) => {
+          if (res.data.success) {
+            const memberObj = res.data.data;
+            setForm({
+              organization: memberObj.organization?._id || memberObj.organization || '',
+              name: memberObj.name || '',
+              email: memberObj.email || '',
+              mobile: memberObj.mobile || '',
+              role_id: memberObj.role_id?._id || memberObj.role_id || '',
+              designation: memberObj.designation || '',
+            });
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to fetch details for editing', err);
+          // Fallback if detail fetch fails
+          setForm({
+            organization: '',
+            name: user.name || '',
+            email: user.email || '',
+            mobile: user.phone || '',
+            role_id: '',
+            designation: user.designation || '',
+          });
+        });
+    }
+  }, [isOpen, user]);
+
+  const setField = (field: keyof EditUserFormData) => (value: string) => {
     setForm((prev) => ({
       ...prev,
       [field]: value,
@@ -183,7 +201,7 @@ export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) =
   };
 
   const validate = (): boolean => {
-    const errs: Partial<Record<keyof AddUserFormData, string>> = {};
+    const errs: Partial<Record<keyof EditUserFormData, string>> = {};
     if (!form.organization) errs.organization = 'Organization is required';
     if (!form.name.trim()) errs.name = 'Full name is required';
     if (!form.mobile.trim()) errs.mobile = 'Mobile number is required';
@@ -201,14 +219,6 @@ export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) =
     setLoading(true);
     await onSubmit(form);
     setLoading(false);
-    setForm(EMPTY);
-    setErrors({});
-  };
-
-  const handleClose = () => {
-    setForm(EMPTY);
-    setErrors({});
-    onClose();
   };
 
   if (!isOpen) return null;
@@ -218,33 +228,30 @@ export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) =
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="add-user-modal-title"
+      aria-labelledby="edit-user-modal-title"
     >
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={handleClose}
+        onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Panel */}
-      <div className="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl">
+      <div className="animate-in fade-in zoom-in-95 relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl duration-200">
         {/* Header */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600">
-              <Plus className="h-4 w-4 text-white" />
+            <div className="bg-indigo-650 flex h-9 w-9 items-center justify-center rounded-xl text-white">
+              <User className="h-4 w-4" />
             </div>
             <div>
-              <h2 id="add-user-modal-title" className="text-[15px] font-semibold text-gray-900">
-                Add User
+              <h2 id="edit-user-modal-title" className="text-[15px] font-semibold text-gray-900">
+                Edit User details
               </h2>
-              <p className="text-[12px] text-gray-500">Register a new NSS program unit user</p>
+              <p className="text-[12px] text-gray-500">Modify member properties and credentials</p>
             </div>
           </div>
           <button
-            id="add-user-modal-close"
-            onClick={handleClose}
+            onClick={onClose}
             className="rounded-full p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
             aria-label="Close modal"
           >
@@ -254,14 +261,13 @@ export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) =
 
         {/* Form */}
         <form onSubmit={handleSubmit} noValidate className="px-6 py-5">
-          {/* ── Organization Selection ── */}
           <SectionHeader
             icon={<Building2 className="h-3.5 w-3.5" />}
             title="Organization / Program Unit"
           />
 
           <FormSelectObject
-            id="add-user-organization"
+            id="edit-user-organization"
             label="Organization *"
             value={form.organization}
             onChange={setField('organization')}
@@ -270,82 +276,81 @@ export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) =
             error={errors.organization}
           />
 
-          {/* ── User Details (Only shown if org selected) ── */}
-          {form.organization && (
-            <div className="animate-in fade-in slide-in-from-top-2 mt-4">
-              <SectionHeader icon={<User className="h-3.5 w-3.5" />} title="User Details" />
+          <div className="mt-4">
+            <SectionHeader icon={<User className="h-3.5 w-3.5" />} title="User Details" />
 
+            <FormInput
+              id="edit-user-name"
+              label="Full Name *"
+              placeholder="e.g. Dr. Rajesh Kulkarni"
+              value={form.name}
+              onChange={(e) => setField('name')(e.target.value)}
+              error={errors.name}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
               <FormInput
-                id="add-user-name"
-                label="Full Name *"
-                placeholder="e.g. Dr. Rajesh Kulkarni"
-                value={form.name}
-                onChange={(e) => setField('name')(e.target.value)}
-                error={errors.name}
+                id="edit-user-mobile"
+                label="Mobile Number *"
+                type="tel"
+                placeholder="9422011234"
+                value={form.mobile}
+                onChange={(e) => setField('mobile')(e.target.value)}
+                error={errors.mobile}
+              />
+              <FormInput
+                id="edit-user-email"
+                label="Email ID *"
+                type="email"
+                placeholder="user@college.ac.in"
+                value={form.email}
+                onChange={(e) => setField('email')(e.target.value)}
+                error={errors.email}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormSelectObject
+                id="edit-user-role"
+                label="Role *"
+                value={form.role_id}
+                onChange={setField('role_id')}
+                options={roles}
+                placeholder="Select a role"
+                error={errors.role_id}
               />
 
-              {/* Phone + Email side by side */}
-              <div className="grid grid-cols-2 gap-3">
-                <FormInput
-                  id="add-user-mobile"
-                  label="Mobile Number *"
-                  type="tel"
-                  placeholder="9422011234"
-                  value={form.mobile}
-                  onChange={(e) => setField('mobile')(e.target.value)}
-                  error={errors.mobile}
-                />
-                <FormInput
-                  id="add-user-email"
-                  label="Email ID *"
-                  type="email"
-                  placeholder="user@college.ac.in"
-                  value={form.email}
-                  onChange={(e) => setField('email')(e.target.value)}
-                  error={errors.email}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <FormSelectObject
-                  id="add-user-role"
-                  label="Role *"
-                  value={form.role_id}
-                  onChange={setField('role_id')}
-                  options={roles}
-                  placeholder="Select a role"
-                  error={errors.role_id}
-                />
-                <FormInput
-                  id="add-user-designation"
-                  label="Designation"
-                  placeholder="e.g. Programme Officer"
-                  value={form.designation}
-                  onChange={(e) => setField('designation')(e.target.value)}
-                  error={errors.designation}
-                />
-              </div>
+              <FormInput
+                id="edit-user-designation"
+                label="Designation"
+                placeholder="e.g. Coordinator, Officer"
+                value={form.designation}
+                onChange={(e) => setField('designation')(e.target.value)}
+                error={errors.designation}
+              />
             </div>
-          )}
+          </div>
 
           {/* Actions */}
-          <div className="mt-4 flex justify-end gap-3 border-t border-gray-100 pt-4">
+          <div className="mt-6 flex justify-end gap-3 border-t border-gray-100 pt-4">
             <button
-              id="add-user-cancel"
               type="button"
-              onClick={handleClose}
+              onClick={onClose}
               className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 transition hover:border-gray-300 hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
-              id="add-user-submit"
               type="submit"
               disabled={loading}
               className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
             >
-              {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {loading ? 'Saving…' : 'Add User'}
+              {loading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Save className="h-3.5 w-3.5" />
+              )}
+              {loading ? 'Saving…' : 'Save Changes'}
             </button>
           </div>
         </form>

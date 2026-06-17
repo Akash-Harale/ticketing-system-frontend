@@ -1,13 +1,7 @@
 import { createContext } from 'react';
 
 // All roles defined in the new RBAC seed
-export type UserRole =
-  | 'Superadmin'
-  | 'NSS_Admin'
-  | 'NSS_User'
-  | 'PMU_Admin'
-  | 'PMU_User'
-  | 'Porgram_unit_coordinator';
+export type UserRole = string;
 
 export interface Resource {
   _id: string;

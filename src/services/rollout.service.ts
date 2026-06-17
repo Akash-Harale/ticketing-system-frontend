@@ -12,6 +12,10 @@ export interface InstituteEntry {
   id: string;
   name: string;
   type: string;
+  rolloutId?: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  tasks?: RolloutTask[];
 }
 
 export interface DistrictEntry {
@@ -32,9 +36,38 @@ export interface RolloutCampaign {
   templateName: string;
   sentDate: string;
   status: 'Active' | 'Completed' | 'Draft';
+  start_date?: string | null;
+  end_date?: string | null;
   totalStates: number;
   totalInstitutes: number;
   states: StateEntry[];
+  tasks?: RolloutTask[];
+}
+
+export interface RolloutTask {
+  task_id: string;
+  task_name: string;
+  task_desc: string;
+  task_priority: 'High' | 'Medium' | 'Low';
+  task_dependency?: string;
+  planned_start_date?: string | null;
+  planned_end_date?: string | null;
+  actual_start_date?: string | null;
+  actual_end_date?: string | null;
+  task_status: 'Open' | 'Pending' | 'In-progress' | 'Complete' | 'Closed' | 'Reopened';
+  tracking_comments?: string;
+}
+
+export interface CoordinatorRollout {
+  _id: string;
+  campaign_id: {
+    _id: string;
+    title: string;
+    status: string;
+    sentDate: string;
+  };
+  orgn_id: string;
+  tasks: RolloutTask[];
 }
 
 interface ApiResponse<T> {
@@ -43,6 +76,13 @@ interface ApiResponse<T> {
 }
 
 export const rolloutService = {
+  getCoordinatorRollouts: async (orgnId: string): Promise<CoordinatorRollout[]> => {
+    const { data } = await api.get<ApiResponse<CoordinatorRollout[]>>(
+      `/rollouts?orgn_id=${orgnId}`,
+    );
+    return data.data;
+  },
+
   getRollouts: async (): Promise<RolloutCampaign[]> => {
     const { data } = await api.get<ApiResponse<RolloutCampaign[]>>('/rollouts');
     return data.data;
@@ -52,8 +92,54 @@ export const rolloutService = {
     title: string;
     states: string[];
     districts: string[];
+    start_date?: string | null;
+    end_date?: string | null;
+    tasks?: Array<{
+      task_id: string;
+      task_name: string;
+      task_desc?: string;
+      task_priority: 'High' | 'Medium' | 'Low';
+      planned_start_date?: string | null;
+      planned_end_date?: string | null;
+    }>;
   }): Promise<unknown> => {
     const { data } = await api.post<ApiResponse<unknown>>('/rollouts', payload);
+    return data.data;
+  },
+
+  updateRollout: async (
+    id: string,
+    payload: { start_date?: string | null; end_date?: string | null },
+  ): Promise<unknown> => {
+    const { data } = await api.put<ApiResponse<unknown>>(`/rollouts/${id}`, payload);
+    return data.data;
+  },
+
+  updateCampaign: async (
+    campaignId: string,
+    payload: {
+      title?: string;
+      start_date?: string | null;
+      end_date?: string | null;
+      tasks?: Array<{
+        task_id: string;
+        task_name: string;
+        task_desc?: string;
+        task_priority: 'High' | 'Medium' | 'Low';
+        planned_start_date?: string | null;
+        planned_end_date?: string | null;
+      }>;
+    },
+  ): Promise<unknown> => {
+    const { data } = await api.put<ApiResponse<unknown>>(
+      `/rollouts/campaign/${campaignId}`,
+      payload,
+    );
+    return data.data;
+  },
+
+  deleteRollout: async (id: string): Promise<unknown> => {
+    const { data } = await api.delete<ApiResponse<unknown>>(`/rollouts/${id}`);
     return data.data;
   },
 
@@ -74,6 +160,34 @@ export const rolloutService = {
 
   deleteMasterTemplate: async (id: string): Promise<unknown> => {
     const { data } = await api.delete<ApiResponse<unknown>>(`/mastertemplates/${id}`);
+    return data.data;
+  },
+
+  getTasksForOrg: async (orgId: string, campaignId?: string): Promise<RolloutTask[]> => {
+    const url = campaignId
+      ? `/rollouttasks/org/${orgId}/tasks?campaign_id=${campaignId}`
+      : `/rollouttasks/org/${orgId}/tasks`;
+    const { data } = await api.get<ApiResponse<RolloutTask[]>>(url);
+    return data.data;
+  },
+
+  updateTaskForOrg: async (
+    orgId: string,
+    taskId: string,
+    payload: Partial<RolloutTask>,
+  ): Promise<RolloutTask> => {
+    const { data } = await api.put<ApiResponse<RolloutTask>>(
+      `/rollouttasks/org/${orgId}/tasks/${taskId}`,
+      payload,
+    );
+    return data.data;
+  },
+
+  addCampaignTargets: async (
+    id: string,
+    payload: { states: string[]; districts: string[] },
+  ): Promise<unknown> => {
+    const { data } = await api.put<ApiResponse<unknown>>(`/rollouts/${id}/target`, payload);
     return data.data;
   },
 };

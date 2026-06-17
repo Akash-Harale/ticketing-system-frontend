@@ -23,6 +23,10 @@ import {
 import { organizationService, Member } from '../services/organization.service';
 import { UserDetailDrawer } from '../features/userManagement/components/UserDetailDrawer';
 import { AddUserModal, AddUserFormData } from '../features/userManagement/components/AddUserModal';
+import {
+  EditUserModal,
+  EditUserFormData,
+} from '../features/userManagement/components/EditUserModal';
 import { MultiSelectDropdown, MultiSelectOption } from '../components/ui/MultiSelectDropdown';
 import { StateCard } from '../features/programUnit/components/StateCard';
 import { api } from '../api/axios';
@@ -66,10 +70,12 @@ const UserCard = ({ user, onClick }: { user: UserItem; onClick: () => void }) =>
           </span>
         </div>
         <p className="mt-0.5 truncate text-[12px] text-gray-500">{user.email}</p>
-        <div className="mt-1 flex items-center gap-1.5">
-          <Briefcase className="h-3 w-3 flex-shrink-0 text-gray-400" />
-          <p className="truncate text-[11px] text-gray-400">{user.designation}</p>
-        </div>
+        {user.designation && (
+          <div className="mt-1 flex items-center gap-1.5">
+            <Briefcase className="h-3 w-3 flex-shrink-0 text-gray-400" />
+            <p className="truncate text-[11px] text-gray-400">{user.designation}</p>
+          </div>
+        )}
       </div>
 
       {/* Role badge */}
@@ -121,9 +127,11 @@ const PuUserCard = ({ user, onClick }: { user: ProgramUnitUser; onClick: () => v
           <p className="truncate text-[11px] text-indigo-500">{user.unitName}</p>
         </div>
       </div>
-      <span className="hidden flex-shrink-0 rounded-lg bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold text-indigo-600 transition-colors group-hover:bg-indigo-100 sm:block">
-        {user.designation}
-      </span>
+      {user.designation && (
+        <span className="hidden flex-shrink-0 rounded-lg bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold text-indigo-600 transition-colors group-hover:bg-indigo-100 sm:block">
+          {user.designation}
+        </span>
+      )}
     </button>
   );
 };
@@ -309,12 +317,12 @@ const SearchResultCard = ({ result, onClick }: { result: SearchResult; onClick: 
               <Building2 className="h-3 w-3 flex-shrink-0 text-emerald-400" />
               <p className="truncate text-[11px] text-emerald-600">{puUser.unitName}</p>
             </>
-          ) : (
+          ) : user.designation ? (
             <>
               <Briefcase className="h-3 w-3 flex-shrink-0 text-gray-400" />
               <p className="truncate text-[11px] text-gray-400">{user.designation}</p>
             </>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -574,6 +582,7 @@ export const Users = () => {
   const [openAccordion, setOpenAccordion] = useState<string | null>('nss');
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
@@ -595,7 +604,7 @@ export const Users = () => {
             id: m._id,
             name: m.name,
             email: m.email,
-            designation: m.role_id?.name || 'Programme Officer',
+            designation: m.designation || '',
             phone: m.mobile,
             department: org?.orgn_name || 'N/A',
             role: m.role_id?.name || 'Programme Officer',
@@ -634,7 +643,7 @@ export const Users = () => {
             id: m._id,
             name: m.name,
             email: m.email,
-            designation: m.role_id?.name || 'Staff',
+            designation: m.designation || '',
             phone: m.mobile,
             department: org?.orgn_name || 'N/A',
             role: m.role_id?.name || 'User',
@@ -663,7 +672,7 @@ export const Users = () => {
             id: m._id,
             name: m.name,
             email: m.email,
-            designation: m.role_id?.name || 'Staff',
+            designation: m.designation || '',
             phone: m.mobile,
             department: org?.orgn_name || 'N/A',
             role: m.role_id?.name || 'User',
@@ -752,6 +761,19 @@ export const Users = () => {
     }
   };
 
+  const handleEditUser = async (data: EditUserFormData) => {
+    if (!selectedUser) return;
+    try {
+      await api.put(`/members/${selectedUser.id}`, data);
+      setShowEditModal(false);
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating user', error);
+      alert('Failed to update user');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ── Header ── */}
@@ -834,19 +856,6 @@ export const Users = () => {
               <p className="text-[14px] font-bold text-violet-700">{pmuUsers.length}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-600 text-white">
-              <Building2 className="h-3.5 w-3.5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold tracking-wide text-emerald-400 uppercase">
-                Program Unit Users
-              </p>
-              <p className="text-[14px] font-bold text-emerald-700">
-                {new Set(puUsers.map((u) => u.state)).size} states
-              </p>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -917,7 +926,17 @@ export const Users = () => {
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddUser}
       />
-      <UserDetailDrawer user={selectedUser} onClose={() => setSelectedUser(null)} />
+      <EditUserModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        user={selectedUser}
+        onSubmit={handleEditUser}
+      />
+      <UserDetailDrawer
+        user={selectedUser}
+        onClose={() => setSelectedUser(null)}
+        onEditClick={() => setShowEditModal(true)}
+      />
     </div>
   );
 };

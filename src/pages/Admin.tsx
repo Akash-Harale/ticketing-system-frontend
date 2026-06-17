@@ -487,6 +487,16 @@ export default function Admin() {
     );
   }
 
+  const getHeaderStyle = (name: string) => {
+    const norm = name.toLowerCase();
+    if (norm.includes('superadmin')) return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+    if (norm.includes('nss_admin')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    if (norm.includes('nss_user')) return 'bg-sky-50 text-sky-700 border-sky-200';
+    if (norm.includes('coordinator') || norm.includes('prog'))
+      return 'bg-amber-50 text-amber-700 border-amber-200';
+    return 'bg-gray-50 text-gray-700 border-gray-200';
+  };
+
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
@@ -1135,35 +1145,37 @@ export default function Admin() {
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-md">
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left text-sm">
+              <table className="w-full border-collapse divide-y divide-gray-200 text-left text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="w-1/3 min-w-[280px] px-6 py-4.5 font-bold text-gray-700">
-                      Feature Description
+                  <tr className="bg-gray-50/70">
+                    <th className="w-1/3 min-w-[280px] border-r border-gray-200 px-6 py-5 font-extrabold text-gray-700">
+                      Feature / Privilege
                     </th>
                     {roles.map((role) => (
                       <th
                         key={role._id}
-                        className="text-gray-750 min-w-[120px] px-4 py-4.5 text-center font-bold"
+                        className="border-r border-gray-200 px-4 py-5 text-center font-bold"
                       >
-                        <span className="inline-block text-xs tracking-wider uppercase">
+                        <span
+                          className={`inline-block rounded-full border px-3 py-1.5 text-xs font-bold tracking-wider uppercase ${getHeaderStyle(role.name)} shadow-sm`}
+                        >
                           {role.name.replace(/_/g, ' ')}
                         </span>
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-gray-150 divide-y">
                   {appFeatures.map((feat) => {
                     const privId = findPrivilegeId(feat.resource, feat.action);
                     return (
-                      <tr key={feat.key} className="transition-colors hover:bg-gray-50/20">
-                        <td className="px-6 py-4">
+                      <tr key={feat.key} className="transition-colors hover:bg-gray-50/40">
+                        <td className="border-r border-gray-200 px-6 py-4.5">
                           <div className="flex flex-col">
-                            <span className="font-bold text-gray-950">{feat.name}</span>
-                            <span className="mt-0.5 text-[11px] text-gray-400">
+                            <span className="text-[14px] font-bold text-gray-900">{feat.name}</span>
+                            <span className="mt-1 text-xs leading-relaxed font-medium text-gray-500">
                               {feat.description}
                             </span>
                           </div>
@@ -1172,24 +1184,27 @@ export default function Admin() {
                           const hasPriv = privId
                             ? (tempRolePrivileges[role._id] ?? []).includes(privId)
                             : false;
-                          const isSuper = role.name === 'Superadmin';
+                          const isSuper = role.name.toLowerCase() === 'superadmin';
                           return (
-                            <td key={role._id} className="px-4 py-4 text-center">
-                              <div className="inline-flex items-center justify-center">
+                            <td
+                              key={role._id}
+                              className="border-r border-gray-200 px-4 py-4.5 text-center align-middle"
+                            >
+                              <div className="flex items-center justify-center">
                                 <button
                                   type="button"
                                   disabled={isSuper || !privId}
                                   onClick={() =>
                                     privId && handleToggleMatrixPrivilege(role._id, privId)
                                   }
-                                  className={`flex h-6 w-6 items-center justify-center rounded-lg border transition-all ${
+                                  className={`flex h-8 w-8 items-center justify-center rounded-xl border-2 transition-all duration-200 ${
                                     isSuper
-                                      ? 'text-indigo-550 cursor-not-allowed border-indigo-200 bg-indigo-50'
+                                      ? 'cursor-not-allowed border-indigo-200 bg-indigo-50/50 text-indigo-600 shadow-inner'
                                       : !privId
-                                        ? 'bg-gray-150 cursor-not-allowed border-gray-200'
+                                        ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-300'
                                         : hasPriv
-                                          ? 'border-indigo-650 bg-indigo-650 cursor-pointer text-white shadow-sm hover:bg-indigo-700'
-                                          : 'cursor-pointer border-gray-300 bg-white hover:border-gray-400'
+                                          ? 'border-indigo-650 bg-indigo-650 scale-105 cursor-pointer text-white shadow-md shadow-indigo-100'
+                                          : 'cursor-pointer border-gray-300 bg-white hover:border-indigo-500 hover:bg-indigo-50/30'
                                   }`}
                                   title={
                                     isSuper
@@ -1198,7 +1213,7 @@ export default function Admin() {
                                   }
                                 >
                                   {hasPriv || isSuper ? (
-                                    <Check className="h-3.5 w-3.5 stroke-[3px]" />
+                                    <Check className="h-4.5 w-4.5 stroke-[3.5px]" />
                                   ) : null}
                                 </button>
                               </div>
