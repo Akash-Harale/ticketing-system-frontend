@@ -856,19 +856,6 @@ export const Users = () => {
               <p className="text-[14px] font-bold text-violet-700">{pmuUsers.length}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-600 text-white">
-              <Building2 className="h-3.5 w-3.5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold tracking-wide text-emerald-400 uppercase">
-                Program Unit Users
-              </p>
-              <p className="text-[14px] font-bold text-emerald-700">
-                {new Set(puUsers.map((u) => u.state)).size} states
-              </p>
-            </div>
-          </div>
         </div>
       </div>
 

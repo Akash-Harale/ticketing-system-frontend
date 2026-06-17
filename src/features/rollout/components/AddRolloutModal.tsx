@@ -228,6 +228,7 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
   }, [selectedStates, selectedDistricts, allOrgs]);
 
   interface RolloutConfigTask {
+    task_id: string;
     task_name: string;
     task_desc: string;
     task_priority: 'High' | 'Medium' | 'Low';
@@ -251,7 +252,8 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
     try {
       const masterTasks = await rolloutService.getMasterTemplates();
       setTasks(
-        masterTasks.map((t) => ({
+        masterTasks.map((t, idx) => ({
+          task_id: (idx + 1).toString(),
           task_name: t.task_name,
           task_desc: t.task_desc || '',
           task_priority: t.priority || 'Low',
@@ -277,6 +279,7 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
         states: selectedStates,
         districts: selectedDistricts,
         tasks: tasks.map((t) => ({
+          task_id: t.task_id,
           task_name: t.task_name,
           task_desc: t.task_desc || undefined,
           task_priority: t.task_priority,
@@ -320,6 +323,10 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
     val: string,
   ) => {
     setTasks((prev) => prev.map((t, idx) => (idx === index ? { ...t, [field]: val } : t)));
+  };
+
+  const updateTaskDesc = (index: number, val: string) => {
+    setTasks((prev) => prev.map((t, idx) => (idx === index ? { ...t, task_desc: val } : t)));
   };
 
   if (!isOpen) return null;
@@ -474,12 +481,14 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
                     {tasks.map((task, i) => (
                       <tr key={i} className="text-sm hover:bg-gray-50/50">
                         <td className="px-4 py-4 align-top">
-                          <p className="font-semibold text-gray-800">{task.task_name}</p>
-                          {task.task_desc && (
-                            <p className="mt-1 text-xs leading-relaxed text-gray-400">
-                              {task.task_desc}
-                            </p>
-                          )}
+                          <p className="mb-1 font-semibold text-gray-800">{task.task_name}</p>
+                          <input
+                            type="text"
+                            value={task.task_desc || ''}
+                            onChange={(e) => updateTaskDesc(i, e.target.value)}
+                            placeholder="Add task description..."
+                            className="text-gray-650 w-full rounded-lg border border-gray-200 px-2.5 py-1 text-xs transition outline-none hover:border-gray-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
+                          />
                         </td>
                         <td className="px-4 py-4 align-top">
                           <select

@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { api } from '@/api/axios';
 import {
   ChevronDown,
   Search,
@@ -14,10 +13,10 @@ import {
   Clock,
   FileEdit,
   Loader2,
+  Calendar,
 } from 'lucide-react';
 import { TemplateModal } from '../features/rollout/components/TemplateModal';
-import { CreateRollout, ChipSelect } from './CreateRollout';
-import { locationService, State, District } from '@/services/location.service';
+import { CreateRollout } from './CreateRollout';
 import {
   rolloutService,
   RolloutCampaign,
@@ -55,13 +54,19 @@ const typeBadge = (type: string) => {
 };
 
 /* ── DISTRICT PANEL ── */
-const DistrictPanel = ({ district }: { district: DistrictEntry }) => {
+const DistrictPanel = ({
+  district,
+  onDropClick,
+}: {
+  district: DistrictEntry;
+  onDropClick?: (inst: InstituteEntry) => void;
+}) => {
   const [open, setOpen] = useState(false);
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white transition-all">
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`flex w-full items-center gap-3 px-4 py-3 text-left transition ${open ? 'bg-indigo-50/60' : 'hover:bg-gray-50'}`}
+        className={`flex w-full items-center gap-3 px-4 py-3 text-left transition ${open ? 'bg-indigo-50/60' : 'hover:bg-gray-55'}`}
       >
         <MapPin className={`h-4 w-4 flex-shrink-0 ${open ? 'text-indigo-500' : 'text-gray-400'}`} />
         <span
@@ -86,15 +91,43 @@ const DistrictPanel = ({ district }: { district: DistrictEntry }) => {
             {district.institutes.map((inst) => (
               <div
                 key={inst.id}
-                className="flex items-center gap-2.5 rounded-lg border border-gray-100 bg-white px-3 py-2.5"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-100 bg-white px-3 py-2.5"
               >
-                {typeIcon(inst.type)}
-                <span className="flex-1 text-[13px] font-medium text-gray-800">{inst.name}</span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${typeBadge(inst.type)}`}
-                >
-                  {inst.type}
-                </span>
+                <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                  {typeIcon(inst.type)}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-semibold text-gray-800">{inst.name}</p>
+                    {inst.start_date || inst.end_date ? (
+                      <p className="text-[10px] text-gray-500">
+                        Rollout Dates:{' '}
+                        {inst.start_date
+                          ? new Date(inst.start_date).toLocaleDateString('en-IN')
+                          : '—'}{' '}
+                        to{' '}
+                        {inst.end_date ? new Date(inst.end_date).toLocaleDateString('en-IN') : '—'}
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-gray-400 italic">No rollout dates set</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${typeBadge(inst.type)}`}
+                  >
+                    {inst.type}
+                  </span>
+                  {onDropClick && inst.rolloutId && (
+                    <button
+                      onClick={() => onDropClick(inst)}
+                      title="Drop Program Unit"
+                      className="text-gray-450 hover:text-red-650 rounded p-1 transition hover:bg-gray-100"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -105,7 +138,13 @@ const DistrictPanel = ({ district }: { district: DistrictEntry }) => {
 };
 
 /* ── STATE PANEL ── */
-const StatePanel = ({ state }: { state: StateEntry }) => {
+const StatePanel = ({
+  state,
+  onDropClick,
+}: {
+  state: StateEntry;
+  onDropClick?: (inst: InstituteEntry) => void;
+}) => {
   const [open, setOpen] = useState(false);
   const totalInst = state.districts.reduce((s, d) => s + d.institutes.length, 0);
   const initials = state.name
@@ -117,7 +156,7 @@ const StatePanel = ({ state }: { state: StateEntry }) => {
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`flex w-full items-center gap-3 px-5 py-3.5 text-left transition ${open ? 'border-b border-indigo-100 bg-indigo-50/50' : 'hover:bg-gray-50'}`}
+        className={`flex w-full items-center gap-3 px-5 py-3.5 text-left transition ${open ? 'border-b border-indigo-100 bg-indigo-50/50' : 'hover:bg-gray-55'}`}
       >
         <div
           className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-[12px] font-bold transition ${open ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-600'}`}
@@ -128,20 +167,20 @@ const StatePanel = ({ state }: { state: StateEntry }) => {
           <p className={`text-sm font-semibold ${open ? 'text-indigo-700' : 'text-gray-800'}`}>
             {state.name}
           </p>
-          <p className="text-[11px] text-gray-400">
+          <p className="text-gray-405 text-[11px]">
             {state.districts.length} district{state.districts.length !== 1 ? 's' : ''} · {totalInst}{' '}
             institute{totalInst !== 1 ? 's' : ''}
           </p>
         </div>
         <ChevronDown
-          className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={`text-gray-405 h-4 w-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
       {open && (
         <div className="flex flex-col gap-2 border-t border-indigo-100 bg-indigo-50/20 px-4 py-3">
           {state.districts.map((d) => (
-            <DistrictPanel key={d.id} district={d} />
+            <DistrictPanel key={d.id} district={d} onDropClick={onDropClick} />
           ))}
         </div>
       )}
@@ -154,147 +193,31 @@ const RolloutAccordion = ({
   rollout,
   isOpen,
   onToggle,
-  onUpdateSuccess,
+  onUpdateSuccess: _onUpdateSuccess,
+  onEditCampaignClick,
+  onDropClick,
 }: {
   rollout: RolloutCampaign;
   isOpen: boolean;
   onToggle: () => void;
   onUpdateSuccess: () => void;
+  onEditCampaignClick?: (campaign: RolloutCampaign) => void;
+  onDropClick?: (inst: InstituteEntry) => void;
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedStates, setSelectedStates] = useState<string[]>([]);
-  const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
-  const [dbStates, setDbStates] = useState<State[]>([]);
-  const [allDistricts, setAllDistricts] = useState<District[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [units, setUnits] = useState<{ _id: string; orgn_name: string; orgn_type: string }[]>([]);
-  const [errorMsg, setErrorMsg] = useState('');
-
-  // Pre-populate target list with currently active targets when entering edit mode
-  useEffect(() => {
-    if (isEditing) {
-      const initialStates = rollout.states.map((s) => s.name);
-      const initialDistricts: string[] = [];
-      rollout.states.forEach((s) => {
-        s.districts.forEach((d) => {
-          initialDistricts.push(d.name);
-        });
-      });
-      setSelectedStates(initialStates);
-      setSelectedDistricts(initialDistricts);
-      setErrorMsg('');
-    }
-  }, [isEditing, rollout]);
-
-  useEffect(() => {
-    if (isEditing) {
-      locationService
-        .getStates()
-        .then(setDbStates)
-        .catch((err: unknown) => console.error('Failed to load states', err));
-    }
-  }, [isEditing]);
-
-  useEffect(() => {
-    if (dbStates.length === 0 || selectedStates.length === 0) {
-      setAllDistricts([]);
-      if (selectedStates.length === 0) {
-        setSelectedDistricts([]);
-      }
-      return;
-    }
-    const selectedStateIds = selectedStates
-      .map((name) => dbStates.find((s) => s.state_name === name)?._id)
-      .filter(Boolean) as string[];
-
-    if (selectedStateIds.length === 0) return;
-
-    Promise.all(selectedStateIds.map((id) => locationService.getDistrictsByState(id)))
-      .then((results) => {
-        const flatDistricts = results.flat();
-        setAllDistricts(flatDistricts);
-        const validNames = flatDistricts.map((d) => d.district_name);
-        setSelectedDistricts((prev) => prev.filter((d) => validNames.includes(d)));
-      })
-      .catch((err: unknown) => console.error('Failed to load districts', err));
-  }, [selectedStates, dbStates]);
-
-  const stateOptions = useMemo(() => dbStates.map((s) => s.state_name).sort(), [dbStates]);
-
-  const districtOptions = useMemo(() => {
-    return [...new Set(allDistricts.map((d) => d.district_name))].sort();
-  }, [allDistricts]);
-
-  const handleStateChange = (newStates: string[]) => {
-    setSelectedStates(newStates);
-  };
-
-  useEffect(() => {
-    if (selectedDistricts.length === 0) {
-      setUnits([]);
-      return;
-    }
-    const fetchPreview = async () => {
-      try {
-        const { data } = await api.post('/organizations/preview-pu', {
-          states: selectedStates,
-          districts: selectedDistricts,
-        });
-        setUnits(data.data || []);
-      } catch (err: unknown) {
-        console.error('Failed to fetch preview units', err);
-      }
-    };
-    fetchPreview();
-  }, [selectedDistricts, selectedStates]);
-
-  const handleSaveTargets = async () => {
-    if (selectedStates.length === 0 || selectedDistricts.length === 0) {
-      setErrorMsg('Please select at least one state and district.');
-      return;
-    }
-    setLoading(true);
-    setErrorMsg('');
-    try {
-      await rolloutService.addCampaignTargets(rollout.id, {
-        states: selectedStates,
-        districts: selectedDistricts,
-      });
-      setIsEditing(false);
-      setSelectedStates([]);
-      setSelectedDistricts([]);
-      setUnits([]);
-      onUpdateSuccess();
-    } catch (err: unknown) {
-      let msg = 'Failed to update campaign targets.';
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as { response?: { data?: { message?: string } } };
-        if (axiosError.response?.data?.message) {
-          msg = axiosError.response.data.message;
-        }
-      }
-      setErrorMsg(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div
       className={`overflow-hidden rounded-2xl border transition-all duration-300 ${isOpen ? 'border-indigo-200 bg-indigo-50/40 shadow-md shadow-indigo-100' : 'border-gray-200 bg-white hover:border-indigo-200 hover:shadow-sm'}`}
     >
-      <button
+      <div
         onClick={onToggle}
-        className="flex w-full items-center gap-4 px-6 py-5 text-left focus:outline-none"
+        className="flex w-full cursor-pointer items-center gap-4 px-6 py-5 text-left select-none"
       >
-        {/* Icon */}
         <div
           className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl transition ${isOpen ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'bg-indigo-100 text-indigo-600'}`}
         >
           <Send className="h-5 w-5" />
         </div>
 
-        {/* Info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className={`text-[15px] font-bold ${isOpen ? 'text-indigo-700' : 'text-gray-900'}`}>
@@ -313,10 +236,22 @@ const RolloutAccordion = ({
             <span className="mx-1">·</span>
             <Clock className="h-3 w-3" />
             {rollout.sentDate}
+            {rollout.start_date || rollout.end_date ? (
+              <>
+                <span className="mx-1">·</span>
+                <Calendar className="h-3 w-3" />
+                <span>
+                  {rollout.start_date
+                    ? new Date(rollout.start_date).toLocaleDateString('en-IN')
+                    : '—'}{' '}
+                  to{' '}
+                  {rollout.end_date ? new Date(rollout.end_date).toLocaleDateString('en-IN') : '—'}
+                </span>
+              </>
+            ) : null}
           </p>
         </div>
 
-        {/* Stats */}
         <div className="hidden items-center gap-3 text-[12px] text-gray-400 sm:flex">
           <span className="rounded-lg bg-gray-100 px-2.5 py-1 font-semibold">
             {rollout.totalStates} states
@@ -326,17 +261,31 @@ const RolloutAccordion = ({
           </span>
         </div>
 
-        <ChevronDown
-          className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
-        />
-      </button>
+        <div className="flex items-center gap-3">
+          {onEditCampaignClick && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditCampaignClick(rollout);
+              }}
+              className="hover:text-indigo-750 rounded-lg p-1.5 text-gray-400 transition hover:bg-indigo-100"
+              title="Edit Rollout Campaign"
+            >
+              <FileEdit className="h-4.5 w-4.5" />
+            </button>
+          )}
 
-      {/* Body */}
+          <ChevronDown
+            className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+          />
+        </div>
+      </div>
+
       <div
         className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[9999px] opacity-100' : 'max-h-0 opacity-0'}`}
       >
         <div className="grid grid-cols-1 gap-6 border-t border-indigo-100 px-6 py-5 md:grid-cols-2">
-          {/* Left Column: Scope */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -347,91 +296,15 @@ const RolloutAccordion = ({
                   {rollout.states.length}
                 </span>
               </div>
-
-              {!isEditing && (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 transition hover:text-indigo-700"
-                >
-                  <Plus className="h-3 w-3" /> Add Targets
-                </button>
-              )}
             </div>
 
-            {!isEditing ? (
-              <div className="flex flex-col gap-3">
-                {rollout.states.map((s) => (
-                  <StatePanel key={s.id} state={s} />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4 rounded-xl border border-dashed border-indigo-200 bg-white p-4">
-                <p className="text-xs font-semibold text-indigo-900">
-                  Add States &amp; Districts Target
-                </p>
-
-                {errorMsg && (
-                  <div className="flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 p-2.5 text-xs text-red-800">
-                    <X className="h-4 w-4 flex-shrink-0 text-red-500" />
-                    <span>{errorMsg}</span>
-                  </div>
-                )}
-                <ChipSelect
-                  label="Select Additional States *"
-                  options={stateOptions}
-                  selected={selectedStates}
-                  onChange={handleStateChange}
-                  placeholder="Choose states…"
-                />
-
-                <ChipSelect
-                  label="Select Additional Districts *"
-                  options={districtOptions}
-                  selected={selectedDistricts}
-                  onChange={setSelectedDistricts}
-                  placeholder={
-                    selectedStates.length === 0 ? 'Select states first' : 'Choose districts…'
-                  }
-                  disabled={selectedStates.length === 0}
-                />
-
-                {units.length > 0 && (
-                  <div className="flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 p-2.5 text-xs text-emerald-800">
-                    <Building2 className="h-4 w-4 text-emerald-600" />
-                    <span>
-                      Found <strong>{units.length}</strong> program units in selected areas.
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-2 border-t border-gray-100 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsEditing(false);
-                      setSelectedStates([]);
-                      setSelectedDistricts([]);
-                      setUnits([]);
-                    }}
-                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 transition hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveTargets}
-                    disabled={loading || selectedDistricts.length === 0}
-                    className="flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {loading && <Loader2 className="h-3 w-3 animate-spin" />}
-                    {loading ? 'Adding…' : 'Add to Campaign'}
-                  </button>
-                </div>
-              </div>
-            )}
+            <div className="flex flex-col gap-3">
+              {rollout.states.map((s) => (
+                <StatePanel key={s.id} state={s} onDropClick={onDropClick} />
+              ))}
+            </div>
           </div>
 
-          {/* Right Column: Assigned Tasks (Master Template) */}
           <div>
             <div className="mb-3 flex items-center gap-2">
               <p className="text-[11px] font-semibold tracking-widest text-gray-400 uppercase">
@@ -518,14 +391,23 @@ const RolloutAccordion = ({
   );
 };
 
+/* ── TASK ID FORMATTING HELPER ── */
+const formatTaskId = (taskId: string, index: number) => {
+  if (!taskId || /^[0-9a-fA-F]{24}$/.test(taskId)) {
+    return (index + 1).toString();
+  }
+  return taskId;
+};
+
 /* ── COORDINATOR TASK ROW ── */
 interface CoordinatorTaskRowProps {
   task: RolloutTask & { campaignTitle: string };
   orgId: string;
   onSaveSuccess: () => void;
+  index: number;
 }
 
-const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess }: CoordinatorTaskRowProps) => {
+const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess, index }: CoordinatorTaskRowProps) => {
   const [status, setStatus] = useState(task.task_status);
   const [actualStart, setActualStart] = useState(
     task.actual_start_date ? new Date(task.actual_start_date).toISOString().split('T')[0] : '',
@@ -637,6 +519,9 @@ const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess }: CoordinatorTaskRowPr
             {task.campaignTitle}
           </span>
           <div className="flex items-center gap-2">
+            <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+              {formatTaskId(task.task_id, index)}
+            </span>
             <p
               className={`font-semibold ${isLocked ? 'text-gray-500 line-through' : 'text-gray-800'}`}
             >
@@ -769,6 +654,331 @@ const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess }: CoordinatorTaskRowPr
   );
 };
 
+/* ── EDIT ROLLOUT MODAL ── */
+interface EditRolloutModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  campaign: RolloutCampaign | null;
+  onSave: () => void;
+}
+
+const EditRolloutModal = ({ isOpen, onClose, campaign, onSave }: EditRolloutModalProps) => {
+  const [title, setTitle] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [tasks, setTasks] = useState<RolloutTask[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  useEffect(() => {
+    if (isOpen && campaign) {
+      setTitle(campaign.title || '');
+      setStartDate(
+        campaign.start_date ? new Date(campaign.start_date).toISOString().split('T')[0] : '',
+      );
+      setEndDate(campaign.end_date ? new Date(campaign.end_date).toISOString().split('T')[0] : '');
+      setTasks(campaign.tasks || []);
+      setErrorMsg('');
+      setSuccessMsg('');
+    }
+  }, [isOpen, campaign]);
+
+  if (!isOpen || !campaign) return null;
+
+  const handleUpdateTaskField = <K extends keyof RolloutTask>(
+    task_id: string,
+    field: K,
+    value: RolloutTask[K],
+  ) => {
+    setTasks((prev) => prev.map((t) => (t.task_id === task_id ? { ...t, [field]: value } : t)));
+  };
+
+  const handleSaveAll = async () => {
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    // Frontend validation:
+    if (!title.trim()) {
+      setErrorMsg('Rollout name is required.');
+      return;
+    }
+
+    const campaignStart = startDate ? new Date(startDate) : null;
+    const campaignEnd = endDate ? new Date(endDate) : null;
+
+    if (campaignStart && campaignEnd && campaignEnd < campaignStart) {
+      setErrorMsg('Rollout end date cannot be less than start date.');
+      return;
+    }
+
+    // Task dates validation
+    for (const task of tasks) {
+      const pStart = task.planned_start_date ? new Date(task.planned_start_date) : null;
+      const pEnd = task.planned_end_date ? new Date(task.planned_end_date) : null;
+
+      if (!pStart) {
+        setErrorMsg(`Planned start date is required for task "${task.task_name}".`);
+        return;
+      }
+      if (!pEnd) {
+        setErrorMsg(`Planned end date is required for task "${task.task_name}".`);
+        return;
+      }
+
+      if (pEnd < pStart) {
+        setErrorMsg(
+          `Planned end date cannot be less than planned start date for task "${task.task_name}".`,
+        );
+        return;
+      }
+
+      if (campaignStart && pStart < campaignStart) {
+        setErrorMsg(
+          `Planned start date for task "${task.task_name}" must be on or after the rollout start date.`,
+        );
+        return;
+      }
+
+      if (campaignEnd && pEnd > campaignEnd) {
+        setErrorMsg(
+          `Planned end date for task "${task.task_name}" must be on or before the rollout end date.`,
+        );
+        return;
+      }
+    }
+
+    setSaving(true);
+    try {
+      await rolloutService.updateCampaign(campaign.id, {
+        title: title.trim(),
+        start_date: startDate ? new Date(startDate).toISOString() : null,
+        end_date: endDate ? new Date(endDate).toISOString() : null,
+        tasks: tasks.map((t) => ({
+          task_id: t.task_id,
+          task_name: t.task_name,
+          task_desc: t.task_desc,
+          task_priority: t.task_priority,
+          planned_start_date: t.planned_start_date
+            ? new Date(t.planned_start_date).toISOString()
+            : null,
+          planned_end_date: t.planned_end_date ? new Date(t.planned_end_date).toISOString() : null,
+        })),
+      });
+
+      setSuccessMsg('Rollout campaign updated successfully!');
+      onSave();
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+    } catch (err: unknown) {
+      let msg = 'Failed to update campaign details';
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { message?: string } } };
+        if (axiosError.response?.data?.message) {
+          msg = axiosError.response.data.message;
+        }
+      }
+      setErrorMsg(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm">
+      <div className="relative flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+          <div>
+            <h3 className="text-lg font-bold text-gray-950">Edit Rollout: {campaign.title}</h3>
+            <p className="text-xs text-gray-500">
+              Configure overall rollout name, timeline, and global tasks schedule
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 space-y-6 overflow-y-auto p-6">
+          {errorMsg && (
+            <div className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 p-3 text-xs text-red-800">
+              <X className="h-4 w-4 flex-shrink-0 text-red-500" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+          {successMsg && (
+            <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-xs text-emerald-800">
+              <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-500" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          {/* Rollout Title */}
+          <div>
+            <label className="mb-1.5 block text-xs font-bold tracking-wider text-gray-500 uppercase">
+              Rollout Campaign Name / Title
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
+              placeholder="e.g. Rollout - 5"
+            />
+          </div>
+
+          {/* Rollout Level Dates */}
+          <div className="grid grid-cols-2 gap-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-bold tracking-wider text-gray-500 uppercase">
+                Rollout Start Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
+              />
+            </div>
+            <div>
+              <label className="text-gray-505 mb-1.5 block text-xs font-bold tracking-wider uppercase">
+                Rollout End Date
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
+              />
+            </div>
+          </div>
+
+          {/* Tasks Editor */}
+          <div>
+            <h4 className="mb-3 text-xs font-bold tracking-wider text-gray-400 uppercase">
+              Global Tasks Planning
+            </h4>
+            <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-bold tracking-wider text-gray-500 uppercase">
+                      <th className="px-3 py-2">Task Details</th>
+                      <th className="w-28 px-3 py-2">Priority</th>
+                      <th className="w-40 px-3 py-2">Planned Start</th>
+                      <th className="w-40 px-3 py-2">Planned End</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {tasks.map((task, idx) => (
+                      <tr key={task.task_id} className="text-xs hover:bg-gray-50/50">
+                        <td className="px-3 py-3">
+                          <span className="mb-1 inline-block rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700">
+                            {formatTaskId(task.task_id, idx)}
+                          </span>
+                          <p className="mb-1 font-semibold text-gray-800">{task.task_name}</p>
+                          <input
+                            type="text"
+                            value={task.task_desc || ''}
+                            onChange={(e) =>
+                              handleUpdateTaskField(task.task_id, 'task_desc', e.target.value)
+                            }
+                            placeholder="Add task description..."
+                            className="w-full rounded-lg border border-gray-200 px-2 py-1 text-[11px] text-gray-600 transition outline-none hover:border-gray-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100"
+                          />
+                        </td>
+                        <td className="px-3 py-3">
+                          <select
+                            value={task.task_priority}
+                            onChange={(e) =>
+                              handleUpdateTaskField(
+                                task.task_id,
+                                'task_priority',
+                                e.target.value as 'High' | 'Medium' | 'Low',
+                              )
+                            }
+                            className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs transition focus:border-indigo-400"
+                          >
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                          </select>
+                        </td>
+                        <td className="px-3 py-3">
+                          <input
+                            type="date"
+                            value={
+                              task.planned_start_date
+                                ? new Date(task.planned_start_date).toISOString().split('T')[0]
+                                : ''
+                            }
+                            onChange={(e) =>
+                              handleUpdateTaskField(
+                                task.task_id,
+                                'planned_start_date',
+                                e.target.value,
+                              )
+                            }
+                            className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs"
+                          />
+                        </td>
+                        <td className="px-3 py-3">
+                          <input
+                            type="date"
+                            value={
+                              task.planned_end_date
+                                ? new Date(task.planned_end_date).toISOString().split('T')[0]
+                                : ''
+                            }
+                            onChange={(e) =>
+                              handleUpdateTaskField(
+                                task.task_id,
+                                'planned_end_date',
+                                e.target.value,
+                              )
+                            }
+                            className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-500 transition hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveAll}
+            disabled={saving}
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ── MAIN PAGE ── */
 export const Rollout = () => {
   const { user } = useAuth();
@@ -795,6 +1005,13 @@ export const Rollout = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
+  const [editingCampaign, setEditingCampaign] = useState<RolloutCampaign | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const isAdmin = useMemo(() => {
+    const roleName = (user?.role_id?.name || '').toLowerCase();
+    return roleName === 'superadmin' || roleName === 'admin';
+  }, [user]);
 
   const fetchRolloutsAndTemplates = async () => {
     setLoading(true);
@@ -1094,12 +1311,13 @@ export const Rollout = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {filteredCoordTasks.map((task) => (
+                  {filteredCoordTasks.map((task, idx) => (
                     <CoordinatorTaskRow
                       key={task.task_id}
                       task={task}
                       orgId={orgId || ''}
                       onSaveSuccess={fetchRolloutsAndTemplates}
+                      index={idx}
                     />
                   ))}
                 </tbody>
@@ -1138,6 +1356,32 @@ export const Rollout = () => {
               isOpen={openId === r.id}
               onToggle={() => setOpenId((prev) => (prev === r.id ? null : r.id))}
               onUpdateSuccess={fetchRolloutsAndTemplates}
+              onEditCampaignClick={
+                isAdmin
+                  ? (campaign) => {
+                      setEditingCampaign(campaign);
+                      setIsEditModalOpen(true);
+                    }
+                  : undefined
+              }
+              onDropClick={
+                isAdmin
+                  ? async (inst) => {
+                      if (
+                        window.confirm(
+                          `Are you sure you want to drop program unit "${inst.name}" from this rollout?`,
+                        )
+                      ) {
+                        try {
+                          await rolloutService.deleteRollout(inst.rolloutId!);
+                          fetchRolloutsAndTemplates();
+                        } catch {
+                          alert('Failed to drop program unit');
+                        }
+                      }
+                    }
+                  : undefined
+              }
             />
           ))}
         </div>
@@ -1147,6 +1391,13 @@ export const Rollout = () => {
         isOpen={showTemplate}
         onClose={() => setShowTemplate(false)}
         onSubmit={handleTemplateSave}
+      />
+
+      <EditRolloutModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        campaign={editingCampaign}
+        onSave={fetchRolloutsAndTemplates}
       />
     </div>
   );
