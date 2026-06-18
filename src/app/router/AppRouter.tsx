@@ -6,7 +6,6 @@ import Dashboard from '@/pages/Dashboard';
 import Admin from '@/pages/Admin';
 
 import { MainLayout } from '@/components/layouts/MainLayout';
-import { AuthLayout } from '@/components/layouts/AuthLayout';
 
 import { ProtectedRoute } from './ProtectedRoute';
 import { PermissionRoute } from './PermissionRoute';
@@ -24,10 +23,6 @@ export const AppRouter = () => {
         {/* Public */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<Home />} />
-        </Route>
-
-        {/* Auth */}
-        <Route element={<AuthLayout />}>
           <Route path="/login" element={<Login />} />
         </Route>
 

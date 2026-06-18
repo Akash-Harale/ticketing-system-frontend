@@ -471,6 +471,7 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
                 <table className="w-full border-collapse text-left">
                   <thead>
                     <tr className="border-gray-150 border-b bg-gray-50 text-[11px] font-bold tracking-wider text-gray-500 uppercase">
+                      <th className="w-20 px-4 py-3">Task ID</th>
                       <th className="px-4 py-3">Task Details</th>
                       <th className="w-32 px-4 py-3">Priority</th>
                       <th className="w-44 px-4 py-3">Planned Dates</th>
@@ -480,6 +481,11 @@ export const AddRolloutModal = ({ isOpen, onClose, onSubmit }: Props) => {
                   <tbody className="divide-y divide-gray-100">
                     {tasks.map((task, i) => (
                       <tr key={i} className="text-sm hover:bg-gray-50/50">
+                        <td className="px-4 py-4 align-top">
+                          <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+                            {task.task_id}
+                          </span>
+                        </td>
                         <td className="px-4 py-4 align-top">
                           <p className="mb-1 font-semibold text-gray-800">{task.task_name}</p>
                           <input

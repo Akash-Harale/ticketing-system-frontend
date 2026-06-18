@@ -53,13 +53,370 @@ const typeBadge = (type: string) => {
   return 'bg-emerald-50 text-emerald-600';
 };
 
+/* ── ADMIN/SUPERADMIN EDITABLE TASK ROW ── */
+interface AdminTaskRowProps {
+  task: RolloutTask;
+  orgId: string;
+  isAdmin: boolean;
+  onSaveSuccess?: () => void;
+  index: number;
+}
+
+const formatDateForInput = (dateStr?: string | null) => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().split('T')[0];
+  } catch {
+    return '';
+  }
+};
+
+const AdminTaskRow = ({ task, orgId, isAdmin, onSaveSuccess, index }: AdminTaskRowProps) => {
+  const [actualStart, setActualStart] = useState(formatDateForInput(task.actual_start_date));
+  const [actualEnd, setActualEnd] = useState(formatDateForInput(task.actual_end_date));
+  const [status, setStatus] = useState(task.task_status);
+  const [remarks, setRemarks] = useState(task.tracking_comments || '');
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const initialStart = formatDateForInput(task.actual_start_date);
+  const initialEnd = formatDateForInput(task.actual_end_date);
+  const initialStatus = task.task_status;
+  const initialRemarks = task.tracking_comments || '';
+
+  const hasChanges =
+    actualStart !== initialStart ||
+    actualEnd !== initialEnd ||
+    status !== initialStatus ||
+    remarks !== initialRemarks;
+
+  useEffect(() => {
+    setActualStart(formatDateForInput(task.actual_start_date));
+    setActualEnd(formatDateForInput(task.actual_end_date));
+    setStatus(task.task_status);
+    setRemarks(task.tracking_comments || '');
+  }, [task]);
+
+  const handleSave = async (
+    overrideStatus?: 'Open' | 'Pending' | 'In-progress' | 'Complete' | 'Closed' | 'Reopened',
+  ) => {
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    const activeStatus = overrideStatus || status;
+    const aStart = actualStart ? new Date(actualStart) : null;
+    const aEnd = actualEnd ? new Date(actualEnd) : null;
+    const pStart = task.planned_start_date ? new Date(task.planned_start_date) : null;
+
+    if (aStart && pStart && aStart < pStart) {
+      setErrorMsg('Actual start date cannot be less than planned start date');
+      return;
+    }
+    if (aStart && aEnd && aEnd < aStart) {
+      setErrorMsg('Actual end date cannot be less than actual start date');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await rolloutService.updateTaskForOrg(orgId, task.task_id, {
+        task_status: activeStatus,
+        actual_start_date: actualStart ? new Date(actualStart).toISOString() : null,
+        actual_end_date: actualEnd ? new Date(actualEnd).toISOString() : null,
+        tracking_comments: remarks.trim(),
+      });
+      setSuccessMsg('Saved successfully!');
+      if (overrideStatus) {
+        setStatus(overrideStatus);
+      }
+      setTimeout(() => setSuccessMsg(''), 3000);
+      if (onSaveSuccess) onSaveSuccess();
+    } catch (err: unknown) {
+      let msg = 'Failed to update task';
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { data?: { message?: string } } };
+        if (axiosError.response?.data?.message) {
+          msg = axiosError.response.data.message;
+        }
+      }
+      setErrorMsg(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const priorityStyles: Record<string, string> = {
+    High: 'bg-red-50 border border-red-100 text-red-700',
+    Medium: 'bg-amber-50 border border-amber-100 text-amber-700',
+    Low: 'bg-blue-50 border border-blue-100 text-blue-700',
+  };
+
+  return (
+    <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md">
+      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-gray-100 pb-2">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="rounded bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+              {formatTaskId(task.task_id, index)}
+            </span>
+            <p className="text-sm font-semibold text-gray-800">{task.task_name}</p>
+          </div>
+          {task.task_desc && (
+            <p className="max-w-xl text-xs leading-relaxed text-gray-400">{task.task_desc}</p>
+          )}
+        </div>
+        <div>
+          <span
+            className={`inline-block rounded-full px-2.5 py-0.5 text-[9px] font-bold tracking-wider uppercase ${
+              priorityStyles[task.task_priority] ||
+              'text-gray-650 border border-gray-100 bg-gray-50'
+            }`}
+          >
+            {task.task_priority} Priority
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {/* Planned dates info */}
+        <div className="flex flex-col justify-center space-y-1.5 rounded-lg border border-slate-100 bg-slate-50/70 p-3 text-xs text-gray-600">
+          <p>
+            <span className="font-semibold text-gray-400">Planned Start:</span>{' '}
+            {task.planned_start_date
+              ? new Date(task.planned_start_date).toLocaleDateString('en-IN', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : '—'}
+          </p>
+          <p>
+            <span className="font-semibold text-gray-400">Planned End:</span>{' '}
+            {task.planned_end_date
+              ? new Date(task.planned_end_date).toLocaleDateString('en-IN', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : '—'}
+          </p>
+        </div>
+
+        {/* Actual Start & End inputs */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col">
+            <label className="mb-1 text-[9px] font-bold tracking-wider text-gray-400 uppercase">
+              Actual Start
+            </label>
+            <input
+              type="date"
+              value={actualStart}
+              onChange={(e) => setActualStart(e.target.value)}
+              disabled={!isAdmin}
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 disabled:bg-gray-50 disabled:text-gray-400"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="mb-1 text-[9px] font-bold tracking-wider text-gray-400 uppercase">
+              Actual End
+            </label>
+            <input
+              type="date"
+              value={actualEnd}
+              onChange={(e) => setActualEnd(e.target.value)}
+              disabled={!isAdmin}
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 disabled:bg-gray-50 disabled:text-gray-400"
+            />
+          </div>
+        </div>
+
+        {/* Status drop down */}
+        <div className="flex flex-col">
+          <label className="mb-1 text-[9px] font-bold tracking-wider text-gray-400 uppercase">
+            Task Status
+          </label>
+          <select
+            value={status}
+            onChange={(e) =>
+              setStatus(
+                e.target.value as
+                  | 'Open'
+                  | 'Pending'
+                  | 'In-progress'
+                  | 'Complete'
+                  | 'Closed'
+                  | 'Reopened',
+              )
+            }
+            disabled={!isAdmin}
+            className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 disabled:bg-gray-50 disabled:text-gray-400"
+          >
+            <option value="Open">Open</option>
+            <option value="Pending">Pending</option>
+            <option value="In-progress">In-progress</option>
+            <option value="Complete">Complete</option>
+            <option value="Closed">Closed</option>
+            <option value="Reopened">Reopened</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-end gap-3 sm:flex-row">
+        <div className="w-full flex-1">
+          <label className="mb-1 block text-[9px] font-bold tracking-wider text-gray-400 uppercase">
+            Remarks / Comments
+          </label>
+          <textarea
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+            disabled={!isAdmin}
+            placeholder={!isAdmin ? 'No remarks' : 'Remarks (optional)'}
+            rows={1}
+            className="w-full resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 disabled:bg-gray-50 disabled:text-gray-400"
+          />
+        </div>
+
+        {isAdmin && (
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              onClick={() => handleSave()}
+              disabled={saving || !hasChanges}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-40"
+            >
+              {saving && <Loader2 className="h-3 w-3 animate-spin" />}
+              Save
+            </button>
+            {task.task_status === 'Closed' && (
+              <button
+                onClick={() => handleSave('Reopened')}
+                disabled={saving}
+                className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+              >
+                Reopen
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {successMsg && (
+        <div className="animate-fade-in text-[11px] font-semibold text-emerald-600">
+          {successMsg}
+        </div>
+      )}
+      {errorMsg && (
+        <div className="animate-fade-in text-[11px] font-semibold text-red-600">{errorMsg}</div>
+      )}
+    </div>
+  );
+};
+
+/* ── COLLAPSIBLE PROGRAM UNIT PANEL ── */
+interface InstitutePanelProps {
+  inst: InstituteEntry;
+  onDropClick?: (inst: InstituteEntry) => void;
+  onUpdateSuccess?: () => void;
+}
+
+const InstitutePanel = ({ inst, onDropClick, onUpdateSuccess }: InstitutePanelProps) => {
+  const [open, setOpen] = useState(false);
+  const { user } = useAuth();
+  const isAdmin = useMemo(() => {
+    const role = (user?.role_id?.name || '').toLowerCase();
+    return role === 'superadmin' || role === 'admin';
+  }, [user]);
+
+  return (
+    <div className="border-gray-150 overflow-hidden rounded-xl border bg-white shadow-sm transition-all">
+      <div
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 px-4 py-3 text-left transition select-none ${open ? 'bg-slate-50' : 'hover:bg-gray-50/50'}`}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          {typeIcon(inst.type)}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-semibold text-gray-800">{inst.name}</p>
+            {inst.start_date || inst.end_date ? (
+              <p className="text-[10px] text-gray-500">
+                Rollout Dates:{' '}
+                {inst.start_date ? new Date(inst.start_date).toLocaleDateString('en-IN') : '—'} to{' '}
+                {inst.end_date ? new Date(inst.end_date).toLocaleDateString('en-IN') : '—'}
+              </p>
+            ) : (
+              <p className="text-[10px] text-gray-400 italic">No rollout dates set</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${typeBadge(inst.type)}`}
+          >
+            {inst.type}
+          </span>
+          {onDropClick && inst.rolloutId && (
+            <button
+              onClick={() => onDropClick(inst)}
+              title="Drop Program Unit"
+              className="text-gray-450 hover:text-red-650 rounded p-1 transition hover:bg-gray-100"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <ChevronDown
+            onClick={() => setOpen((o) => !o)}
+            className={`h-4 w-4 cursor-pointer text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          />
+        </div>
+      </div>
+
+      {open && (
+        <div className="space-y-3 border-t border-gray-100 bg-slate-50/50 p-4">
+          <div className="flex items-center justify-between border-b border-gray-200 pb-1.5">
+            <h4 className="text-[11px] font-extrabold tracking-widest text-slate-400 uppercase">
+              Program Unit Rollout Tasks Status
+            </h4>
+            <span className="rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+              {inst.tasks?.length || 0} tasks
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {inst.tasks && inst.tasks.length > 0 ? (
+              inst.tasks.map((task, index) => (
+                <AdminTaskRow
+                  key={task.task_id}
+                  task={task}
+                  orgId={inst.id}
+                  isAdmin={isAdmin}
+                  onSaveSuccess={onUpdateSuccess}
+                  index={index}
+                />
+              ))
+            ) : (
+              <p className="text-gray-405 py-2 text-xs italic">
+                No tasks mapped to this program unit yet.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ── DISTRICT PANEL ── */
 const DistrictPanel = ({
   district,
   onDropClick,
+  onUpdateSuccess,
 }: {
   district: DistrictEntry;
   onDropClick?: (inst: InstituteEntry) => void;
+  onUpdateSuccess?: () => void;
 }) => {
   const [open, setOpen] = useState(false);
   return (
@@ -87,48 +444,14 @@ const DistrictPanel = ({
           <p className="mb-2 text-[10px] font-semibold tracking-widest text-gray-400 uppercase">
             Institutes / Colleges
           </p>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             {district.institutes.map((inst) => (
-              <div
+              <InstitutePanel
                 key={inst.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-100 bg-white px-3 py-2.5"
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                  {typeIcon(inst.type)}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-semibold text-gray-800">{inst.name}</p>
-                    {inst.start_date || inst.end_date ? (
-                      <p className="text-[10px] text-gray-500">
-                        Rollout Dates:{' '}
-                        {inst.start_date
-                          ? new Date(inst.start_date).toLocaleDateString('en-IN')
-                          : '—'}{' '}
-                        to{' '}
-                        {inst.end_date ? new Date(inst.end_date).toLocaleDateString('en-IN') : '—'}
-                      </p>
-                    ) : (
-                      <p className="text-[10px] text-gray-400 italic">No rollout dates set</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${typeBadge(inst.type)}`}
-                  >
-                    {inst.type}
-                  </span>
-                  {onDropClick && inst.rolloutId && (
-                    <button
-                      onClick={() => onDropClick(inst)}
-                      title="Drop Program Unit"
-                      className="text-gray-450 hover:text-red-650 rounded p-1 transition hover:bg-gray-100"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
+                inst={inst}
+                onDropClick={onDropClick}
+                onUpdateSuccess={onUpdateSuccess}
+              />
             ))}
           </div>
         </div>
@@ -141,9 +464,11 @@ const DistrictPanel = ({
 const StatePanel = ({
   state,
   onDropClick,
+  onUpdateSuccess,
 }: {
   state: StateEntry;
   onDropClick?: (inst: InstituteEntry) => void;
+  onUpdateSuccess?: () => void;
 }) => {
   const [open, setOpen] = useState(false);
   const totalInst = state.districts.reduce((s, d) => s + d.institutes.length, 0);
@@ -180,7 +505,12 @@ const StatePanel = ({
       {open && (
         <div className="flex flex-col gap-2 border-t border-indigo-100 bg-indigo-50/20 px-4 py-3">
           {state.districts.map((d) => (
-            <DistrictPanel key={d.id} district={d} onDropClick={onDropClick} />
+            <DistrictPanel
+              key={d.id}
+              district={d}
+              onDropClick={onDropClick}
+              onUpdateSuccess={onUpdateSuccess}
+            />
           ))}
         </div>
       )}
@@ -193,7 +523,7 @@ const RolloutAccordion = ({
   rollout,
   isOpen,
   onToggle,
-  onUpdateSuccess: _onUpdateSuccess,
+  onUpdateSuccess,
   onEditCampaignClick,
   onDropClick,
 }: {
@@ -300,7 +630,12 @@ const RolloutAccordion = ({
 
             <div className="flex flex-col gap-3">
               {rollout.states.map((s) => (
-                <StatePanel key={s.id} state={s} onDropClick={onDropClick} />
+                <StatePanel
+                  key={s.id}
+                  state={s}
+                  onDropClick={onDropClick}
+                  onUpdateSuccess={onUpdateSuccess}
+                />
               ))}
             </div>
           </div>
@@ -319,6 +654,7 @@ const RolloutAccordion = ({
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-gray-150 border-b bg-gray-50 text-[10px] font-bold tracking-wider text-gray-500 uppercase">
+                    <th className="w-20 px-3 py-2.5">Task ID</th>
                     <th className="px-3 py-2.5">Task Name</th>
                     <th className="w-24 px-3 py-2.5 text-center">Priority</th>
                     <th className="w-36 px-3 py-2.5 text-center">Planned Dates</th>
@@ -328,6 +664,11 @@ const RolloutAccordion = ({
                   {rollout.tasks && rollout.tasks.length > 0 ? (
                     rollout.tasks.map((task, i) => (
                       <tr key={i} className="text-sm hover:bg-gray-50/50">
+                        <td className="px-3 py-3">
+                          <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+                            {formatTaskId(task.task_id, i)}
+                          </span>
+                        </td>
                         <td className="px-3 py-3">
                           <p className="text-xs font-semibold text-gray-800">{task.task_name}</p>
                           {task.task_desc && (
@@ -376,7 +717,7 @@ const RolloutAccordion = ({
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={3} className="py-4 text-center text-xs text-gray-400 italic">
+                      <td colSpan={4} className="py-4 text-center text-xs text-gray-400 italic">
                         No tasks assigned.
                       </td>
                     </tr>
@@ -514,14 +855,16 @@ const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess, index }: CoordinatorTa
   return (
     <>
       <tr className={`hover:bg-gray-50/50 ${isLocked ? 'bg-gray-50/30' : ''}`}>
+        <td className="w-20 px-4 py-4 align-top">
+          <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
+            {formatTaskId(task.task_id, index)}
+          </span>
+        </td>
         <td className="px-4 py-4 align-top">
           <span className="text-indigo-755 mb-1 inline-block rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold">
             {task.campaignTitle}
           </span>
           <div className="flex items-center gap-2">
-            <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
-              {formatTaskId(task.task_id, index)}
-            </span>
             <p
               className={`font-semibold ${isLocked ? 'text-gray-500 line-through' : 'text-gray-800'}`}
             >
@@ -642,7 +985,7 @@ const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess, index }: CoordinatorTa
       </tr>
       {errorMsg && (
         <tr className="bg-red-50/40">
-          <td colSpan={7} className="text-red-650 border-t-0 px-4 py-2 text-xs font-medium">
+          <td colSpan={8} className="text-red-650 border-t-0 px-4 py-2 text-xs font-medium">
             <span className="inline-flex items-center gap-1.5 text-red-700">
               <span className="h-1.5 w-1.5 rounded-full bg-red-500"></span>
               {errorMsg}
@@ -869,6 +1212,7 @@ const EditRolloutModal = ({ isOpen, onClose, campaign, onSave }: EditRolloutModa
                 <table className="w-full border-collapse text-left">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-bold tracking-wider text-gray-500 uppercase">
+                      <th className="w-20 px-3 py-2">Task ID</th>
                       <th className="px-3 py-2">Task Details</th>
                       <th className="w-28 px-3 py-2">Priority</th>
                       <th className="w-40 px-3 py-2">Planned Start</th>
@@ -879,9 +1223,11 @@ const EditRolloutModal = ({ isOpen, onClose, campaign, onSave }: EditRolloutModa
                     {tasks.map((task, idx) => (
                       <tr key={task.task_id} className="text-xs hover:bg-gray-50/50">
                         <td className="px-3 py-3">
-                          <span className="mb-1 inline-block rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700">
+                          <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">
                             {formatTaskId(task.task_id, idx)}
                           </span>
+                        </td>
+                        <td className="px-3 py-3">
                           <p className="mb-1 font-semibold text-gray-800">{task.task_name}</p>
                           <input
                             type="text"
@@ -1301,6 +1647,7 @@ export const Rollout = () => {
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-gray-200 bg-gray-50 text-[11px] font-bold tracking-wider text-gray-500 uppercase">
+                    <th className="w-20 px-4 py-3">Task ID</th>
                     <th className="px-4 py-3">Task Details</th>
                     <th className="w-24 px-4 py-3">Priority</th>
                     <th className="w-48 px-4 py-3">Planned Dates</th>
