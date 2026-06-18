@@ -69,12 +69,12 @@ export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
       )}
 
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex w-64 flex-col border-r border-gray-800 bg-gray-950 transition-transform duration-300 ease-in-out md:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 flex w-64 flex-col border-r border-gray-800 bg-gray-950 transition-transform duration-300 ease-in-out md:top-[188px] md:z-30 md:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between border-b border-gray-800 px-6">
+        <div className="flex items-center justify-between border-b border-gray-800 px-6 md:hidden">
           <Link to="/" className="flex cursor-pointer items-center justify-center py-2">
             <img src="./logo.png" alt="Company Logo" className="h-16 w-48 object-contain" />
           </Link>

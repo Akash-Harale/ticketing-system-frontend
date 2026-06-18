@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
-import { Navbar } from './Navbar';
+import { Header } from './Header';
 import { ProfileDrawer } from './ProfileDrawer';
 import { useAuth } from '@/context/auth/useAuth';
 
@@ -16,20 +16,22 @@ export const DashboardLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        onProfileClick={() => setIsProfileOpen(true)}
-      />
-      <Navbar
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <Header
         onMenuClick={() => setIsSidebarOpen(true)}
         onProfileClick={() => setIsProfileOpen(true)}
       />
 
-      <main className="mt-16 ml-0 min-h-screen bg-gray-50 p-4 transition-all duration-300 md:ml-64 md:p-6">
-        <Outlet />
-      </main>
+      <div className="relative flex flex-1 pt-[188px]">
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          onProfileClick={() => setIsProfileOpen(true)}
+        />
+        <main className="min-h-screen flex-1 bg-gray-50 p-4 transition-all duration-300 md:ml-64 md:p-6">
+          <Outlet />
+        </main>
+      </div>
 
       <ProfileDrawer
         isOpen={isProfileOpen}
