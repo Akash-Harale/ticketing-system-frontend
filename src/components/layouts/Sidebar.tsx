@@ -1,5 +1,14 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, GitBranch, BookOpen, ShieldCheck, X } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Package,
+  Users,
+  GitBranch,
+  BookOpen,
+  ShieldCheck,
+  Bell,
+  X,
+} from 'lucide-react';
 import { useAuth } from '@/context/auth/useAuth';
 
 interface SidebarProps {
@@ -11,6 +20,10 @@ interface SidebarProps {
 export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
   const location = useLocation();
   const { user } = useAuth();
+
+  const isCoordinator =
+    user?.role_id?.name?.toLowerCase() === 'porgram_unit_coordinator' ||
+    user?.role_id?.name?.toLowerCase() === 'program_unit_coordinator';
 
   const hasPermission = (resource: string, action: string) => {
     if (!user) return false;
@@ -46,7 +59,13 @@ export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
       label: 'Knowledge Base',
       to: '/knowledge',
       icon: BookOpen,
-      visible: hasPermission('Mediacorner', 'READ'),
+      visible: hasPermission('Mediacorner', 'READ') || isCoordinator,
+    },
+    {
+      label: 'Notification',
+      to: '/notifications',
+      icon: Bell,
+      visible: true,
     },
     {
       label: 'Admin',

@@ -1,7 +1,9 @@
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/auth/useAuth';
-import { Menu } from 'lucide-react';
+import { Menu, Bell } from 'lucide-react';
 import { ProfileMenu } from './ProfileMenu';
+import { api } from '@/api/axios';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -10,6 +12,34 @@ interface HeaderProps {
 
 export const Header = ({ onMenuClick, onProfileClick }: HeaderProps) => {
   const { isAuthenticated } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = async () => {
+    try {
+      if (!isAuthenticated) return;
+      const response = await api.get('/mediacorner', {
+        params: { media_type: 'notification' },
+      });
+      const items = response.data.data || [];
+      const unreadOneToOne = items.filter(
+        (item: { notification_type: string; is_read?: boolean }) =>
+          item.notification_type === 'one-to-one' && !item.is_read,
+      );
+      setUnreadCount(unreadOneToOne.length);
+    } catch (error) {
+      console.error('Failed to fetch unread notifications count:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUnreadCount();
+    window.addEventListener('notifications_read', fetchUnreadCount);
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => {
+      window.removeEventListener('notifications_read', fetchUnreadCount);
+      clearInterval(interval);
+    };
+  }, [isAuthenticated]);
 
   return (
     <header className="fixed top-0 right-0 left-0 z-40 w-full bg-white font-sans shadow-sm">
@@ -68,6 +98,18 @@ export const Header = ({ onMenuClick, onProfileClick }: HeaderProps) => {
           <div className="flex items-center gap-4">
             {isAuthenticated ? (
               <>
+                <Link
+                  to="/notifications"
+                  className="relative flex h-10 w-10 items-center justify-center rounded-lg text-white transition hover:bg-[#ef4a24]/85 focus:outline-none"
+                  aria-label="View notifications"
+                >
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-[#2d348f]">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Link>
                 <Link
                   to="/dashboard"
                   className="bg-green-600 px-6 py-4 text-sm font-semibold whitespace-nowrap text-white transition hover:bg-green-700"
