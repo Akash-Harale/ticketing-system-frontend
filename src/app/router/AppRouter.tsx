@@ -15,6 +15,7 @@ import { Users } from '@/pages/Users';
 import { Rollout } from '@/pages/Rollout';
 import { CreateRollout } from '@/pages/CreateRollout';
 import { Knowledge } from '@/pages/Knowledge';
+import { Notifications } from '@/pages/Notifications';
 
 export const AppRouter = () => {
   return (
@@ -31,6 +32,9 @@ export const AppRouter = () => {
           <Route element={<DashboardLayout />}>
             {/* Dashboard: All authenticated users */}
             <Route path="/dashboard" element={<Dashboard />} />
+
+            {/* Notifications: All authenticated users */}
+            <Route path="/notifications" element={<Notifications />} />
 
             {/* Program Unit */}
             <Route element={<PermissionRoute resource="Program_Unit" action="READ" />}>

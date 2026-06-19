@@ -1,5 +1,14 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Users, GitBranch, BookOpen, ShieldCheck, X } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Package,
+  Users,
+  GitBranch,
+  BookOpen,
+  ShieldCheck,
+  Bell,
+  X,
+} from 'lucide-react';
 import { useAuth } from '@/context/auth/useAuth';
 
 interface SidebarProps {
@@ -11,6 +20,10 @@ interface SidebarProps {
 export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
   const location = useLocation();
   const { user } = useAuth();
+
+  const isCoordinator =
+    user?.role_id?.name?.toLowerCase() === 'porgram_unit_coordinator' ||
+    user?.role_id?.name?.toLowerCase() === 'program_unit_coordinator';
 
   const hasPermission = (resource: string, action: string) => {
     if (!user) return false;
@@ -46,7 +59,13 @@ export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
       label: 'Knowledge Base',
       to: '/knowledge',
       icon: BookOpen,
-      visible: hasPermission('Mediacorner', 'READ'),
+      visible: hasPermission('Mediacorner', 'READ') || isCoordinator,
+    },
+    {
+      label: 'Notification',
+      to: '/notifications',
+      icon: Bell,
+      visible: true,
     },
     {
       label: 'Admin',
@@ -69,12 +88,12 @@ export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
       )}
 
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 flex w-64 flex-col border-r border-gray-800 bg-gray-950 transition-transform duration-300 ease-in-out md:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 flex w-64 flex-col border-r border-gray-800 bg-gray-950 transition-transform duration-300 ease-in-out md:top-[11.75rem] md:z-30 md:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between border-b border-gray-800 px-6">
+        <div className="flex items-center justify-between border-b border-gray-800 px-6 md:hidden">
           <Link to="/" className="flex cursor-pointer items-center justify-center py-2">
             <img src="./logo.png" alt="Company Logo" className="h-16 w-48 object-contain" />
           </Link>
