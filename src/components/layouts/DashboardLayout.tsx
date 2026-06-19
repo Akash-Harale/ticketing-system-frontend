@@ -22,7 +22,7 @@ export const DashboardLayout = () => {
         onProfileClick={() => setIsProfileOpen(true)}
       />
 
-      <div className="relative flex flex-1 pt-[188px]">
+      <div className="relative flex flex-1 pt-[11.75rem]">
         <Sidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
