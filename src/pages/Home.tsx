@@ -96,7 +96,7 @@ export default function Home() {
       {/* Hero Banner Section */}
       <section className="relative overflow-hidden bg-slate-900 text-white">
         <img
-          src="https://nss.gov.in/sites/all/themes/youthaffair/images/nss.jpg"
+          src="modi.jpg"
           alt="NSS Event"
           className="h-[320px] w-full object-cover opacity-80 md:h-[480px]"
         />

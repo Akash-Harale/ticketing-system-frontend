@@ -48,11 +48,7 @@ export const Header = ({ onMenuClick, onProfileClick }: HeaderProps) => {
         <div className="mx-auto flex h-34 max-w-[1400px] items-center justify-between px-4 py-0">
           <div className="flex items-center">
             <Link to="/">
-              <img
-                src="https://nss.gov.in/sites/all/themes/youthaffair/logo.png"
-                alt="NSS Logo"
-                className="h-34 object-contain"
-              />
+              <img src="logo.png" alt="NSS Logo" className="h-34 object-contain" />
             </Link>
           </div>
 
