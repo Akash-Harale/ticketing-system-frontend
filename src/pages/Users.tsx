@@ -774,6 +774,18 @@ export const Users = () => {
     }
   };
 
+  const handleDeleteUser = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    try {
+      await api.delete(`/members/${id}`);
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error deleting user', error);
+      alert('Failed to delete user');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ── Header ── */}
@@ -936,6 +948,9 @@ export const Users = () => {
         user={selectedUser}
         onClose={() => setSelectedUser(null)}
         onEditClick={() => setShowEditModal(true)}
+        onDeleteClick={() => {
+          if (selectedUser) handleDeleteUser(selectedUser.id);
+        }}
       />
     </div>
   );
