@@ -16,6 +16,9 @@ import { Rollout } from '@/pages/Rollout';
 import { CreateRollout } from '@/pages/CreateRollout';
 import { Knowledge } from '@/pages/Knowledge';
 import { Notifications } from '@/pages/Notifications';
+import { Feedback } from '@/pages/help-desk/Feedback';
+import { ReportIssue } from '@/pages/help-desk/ReportIssue';
+import { MyReports } from '@/pages/help-desk/MyReports';
 
 export const AppRouter = () => {
   return (
@@ -56,6 +59,11 @@ export const AppRouter = () => {
             <Route element={<PermissionRoute resource="Mediacorner" action="READ" />}>
               <Route path="/knowledge" element={<Knowledge />} />
             </Route>
+
+            {/* Help Desk */}
+            <Route path="/help-desk/feedback" element={<Feedback />} />
+            <Route path="/help-desk/report-issue" element={<ReportIssue />} />
+            <Route path="/help-desk/my-reports" element={<MyReports />} />
 
             {/* Admin (RBAC Management) */}
             <Route

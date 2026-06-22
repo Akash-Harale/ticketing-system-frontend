@@ -8,8 +8,14 @@ import {
   ShieldCheck,
   Bell,
   X,
+  ChevronDown,
+  Headphones,
+  MessageSquare,
+  AlertTriangle,
+  FileText,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth/useAuth';
+import { useState } from 'react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -20,6 +26,7 @@ interface SidebarProps {
 export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
   const location = useLocation();
   const { user } = useAuth();
+  const [helpDeskOpen, setHelpDeskOpen] = useState(false);
 
   const isCoordinator =
     user?.role_id?.name?.toLowerCase() === 'porgram_unit_coordinator' ||
@@ -140,6 +147,63 @@ export const Sidebar = ({ isOpen, onClose, onProfileClick }: SidebarProps) => {
               </Link>
             );
           })}
+
+          {/* Help Desk Dropdown */}
+          <div className="pt-2">
+            <button
+              onClick={() => setHelpDeskOpen(!helpDeskOpen)}
+              className="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-400 transition-all duration-150 hover:bg-gray-800/70 hover:text-gray-100"
+            >
+              <Headphones className="h-4 w-4 flex-shrink-0 text-gray-500 transition-colors group-hover:text-gray-300" />
+              <span>Help Desk</span>
+              <ChevronDown
+                className={`ml-auto h-4 w-4 transition-transform duration-200 ${
+                  helpDeskOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {helpDeskOpen && (
+              <div className="mt-1 ml-6 flex flex-col space-y-1 border-l border-gray-800 pl-3">
+                <Link
+                  to="/help-desk/feedback"
+                  onClick={onClose}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    location.pathname === '/help-desk/feedback'
+                      ? 'bg-indigo-600/10 text-indigo-400'
+                      : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Feedback
+                </Link>
+                <Link
+                  to="/help-desk/report-issue"
+                  onClick={onClose}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    location.pathname === '/help-desk/report-issue'
+                      ? 'bg-indigo-600/10 text-indigo-400'
+                      : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  Create Ticket
+                </Link>
+                <Link
+                  to="/help-desk/my-reports"
+                  onClick={onClose}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    location.pathname === '/help-desk/my-reports'
+                      ? 'bg-indigo-600/10 text-indigo-400'
+                      : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  <FileText className="h-4 w-4" />
+                  My Reports
+                </Link>
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Footer — live user info */}
