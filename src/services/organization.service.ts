@@ -72,8 +72,13 @@ export const organizationService = {
   },
 
   /** Fetch all organizations */
-  getAll: async () => {
-    const { data } = await api.get<ApiResponse<Organization[]>>('/organizations');
+  getAll: async (params?: {
+    orgn_type?: string;
+    orgn_state?: string;
+    orgn_district?: string;
+    search?: string;
+  }) => {
+    const { data } = await api.get<ApiResponse<Organization[]>>('/organizations', { params });
     return data;
   },
 

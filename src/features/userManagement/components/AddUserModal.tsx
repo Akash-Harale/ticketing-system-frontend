@@ -127,30 +127,30 @@ const EMPTY: AddUserFormData = {
    MODAL
 ───────────────────────────────────────────── */
 import { api } from '@/api/axios';
-import { Organization } from '@/services/organization.service';
+import { organizationService } from '@/services/organization.service';
+import { locationService } from '@/services/location.service';
 
 export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) => {
   const [form, setForm] = useState<AddUserFormData>(EMPTY);
   const [errors, setErrors] = useState<Partial<Record<keyof AddUserFormData, string>>>({});
   const [loading, setLoading] = useState(false);
 
+  const [orgType, setOrgType] = useState<string>('');
+  const [selectedState, setSelectedState] = useState<string>('');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
+  const [states, setStates] = useState<{ label: string; value: string }[]>([]);
+  const [districts, setDistricts] = useState<{ label: string; value: string }[]>([]);
+
   const [orgs, setOrgs] = useState<{ label: string; value: string }[]>([]);
   const [roles, setRoles] = useState<{ label: string; value: string }[]>([]);
 
   useEffect(() => {
     if (isOpen) {
-      // Fetch organizations
-      api
-        .get('/organizations')
-        .then((res) => {
-          if (res.data.success) {
-            setOrgs(
-              res.data.data.map((o: Organization) => ({
-                label: `${o.orgn_name} (${o.orgn_type})`,
-                value: o._id,
-              })),
-            );
-          }
+      // Fetch states
+      locationService
+        .getStates()
+        .then((data) => {
+          setStates(data.map((s) => ({ label: s.state_name, value: s._id })));
         })
         .catch(console.error);
 
@@ -173,6 +173,57 @@ export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) =
         .catch(console.error);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (selectedState) {
+      locationService
+        .getDistrictsByState(selectedState)
+        .then((data) => {
+          setDistricts(data.map((d) => ({ label: d.district_name, value: d._id })));
+          setSelectedDistrict('');
+        })
+        .catch(console.error);
+    } else {
+      setDistricts([]);
+      setSelectedDistrict('');
+    }
+  }, [selectedState]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (orgType === 'NSS' || orgType === 'PMU') {
+      organizationService
+        .getAll({ orgn_type: orgType })
+        .then((res) => {
+          if (res.success) {
+            setOrgs(
+              res.data.map((o) => ({
+                label: `${o.orgn_name} (${o.orgn_type})`,
+                value: o._id,
+              })),
+            );
+          }
+        })
+        .catch(console.error);
+    } else if (orgType === 'PU' && selectedState && selectedDistrict) {
+      organizationService
+        .getAll({ orgn_type: 'PU', orgn_state: selectedState, orgn_district: selectedDistrict })
+        .then((res) => {
+          if (res.success) {
+            setOrgs(
+              res.data.map((o) => ({
+                label: o.orgn_name,
+                value: o._id,
+              })),
+            );
+          }
+        })
+        .catch(console.error);
+    } else {
+      setOrgs([]);
+    }
+  }, [isOpen, orgType, selectedState, selectedDistrict]);
 
   const setField = (field: keyof AddUserFormData) => (value: string) => {
     setForm((prev) => ({
@@ -208,6 +259,9 @@ export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) =
   const handleClose = () => {
     setForm(EMPTY);
     setErrors({});
+    setOrgType('');
+    setSelectedState('');
+    setSelectedDistrict('');
     onClose();
   };
 
@@ -261,14 +315,66 @@ export const AddUserModal = ({ isOpen, onClose, onSubmit }: AddUserModalProps) =
           />
 
           <FormSelectObject
-            id="add-user-organization"
-            label="Organization *"
-            value={form.organization}
-            onChange={setField('organization')}
-            options={orgs}
-            placeholder="Select an organization"
-            error={errors.organization}
+            id="add-user-org-type"
+            label="Organization Type *"
+            value={orgType}
+            onChange={(val) => {
+              setOrgType(val);
+              setSelectedState('');
+              setSelectedDistrict('');
+              setField('organization')('');
+            }}
+            options={[
+              { label: 'NSS', value: 'NSS' },
+              { label: 'PMU', value: 'PMU' },
+              { label: 'Program Unit (PU)', value: 'PU' },
+            ]}
+            placeholder="Select Organization Type"
           />
+
+          {orgType === 'PU' && (
+            <div className="animate-in fade-in slide-in-from-top-2 grid grid-cols-2 gap-3">
+              <FormSelectObject
+                id="add-user-state"
+                label="State *"
+                value={selectedState}
+                onChange={(val) => {
+                  setSelectedState(val);
+                  setField('organization')('');
+                }}
+                options={states}
+                placeholder="Select State"
+              />
+              <FormSelectObject
+                id="add-user-district"
+                label="District *"
+                value={selectedDistrict}
+                onChange={(val) => {
+                  setSelectedDistrict(val);
+                  setField('organization')('');
+                }}
+                options={districts}
+                placeholder="Select District"
+                disabled={!selectedState}
+              />
+            </div>
+          )}
+
+          {(orgType === 'NSS' ||
+            orgType === 'PMU' ||
+            (orgType === 'PU' && selectedState && selectedDistrict)) && (
+            <div className="animate-in fade-in slide-in-from-top-2">
+              <FormSelectObject
+                id="add-user-organization"
+                label="Organization *"
+                value={form.organization}
+                onChange={setField('organization')}
+                options={orgs}
+                placeholder={orgType === 'PU' ? 'Select Program Unit' : 'Select Organization'}
+                error={errors.organization}
+              />
+            </div>
+          )}
 
           {/* ── User Details (Only shown if org selected) ── */}
           {form.organization && (
