@@ -12,6 +12,7 @@ export interface EditProgramUnitFormData {
   orgn_state: string;
   orgn_district: string;
   orgn_pincode: string;
+  orgn_type: 'PU' | 'NSS' | 'PMU' | 'PC' | 'OTH';
 }
 
 interface EditProgramUnitModalProps {
@@ -57,6 +58,7 @@ export const EditProgramUnitModal = ({
     orgn_state: '',
     orgn_district: '',
     orgn_pincode: '',
+    orgn_type: 'PU',
   });
   const [errors, setErrors] = useState<Partial<EditProgramUnitFormData>>({});
   const [loading, setLoading] = useState(false);
@@ -86,6 +88,7 @@ export const EditProgramUnitModal = ({
         orgn_state: stateId || '',
         orgn_district: districtId || '',
         orgn_pincode: unit.orgn_pincode || '',
+        orgn_type: (unit.orgn_type as 'PU' | 'NSS' | 'PMU' | 'PC' | 'OTH') || 'PU',
       });
       setErrors({});
     }
