@@ -108,7 +108,7 @@ export const Header = ({ onMenuClick, onProfileClick }: HeaderProps) => {
                 </Link>
                 <Link
                   to="/dashboard"
-                  className="bg-green-600 px-6 py-4 text-sm font-semibold whitespace-nowrap text-white transition hover:bg-green-700"
+                  className="px-6 py-4 text-sm font-semibold whitespace-nowrap text-white transition hover:bg-[#ef4a24]/85"
                 >
                   DASHBOARD
                 </Link>
