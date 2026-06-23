@@ -6,10 +6,10 @@ interface FooterLogo {
   href?: string;
 }
 
-interface FooterLink {
-  label: string;
-  href: string;
-}
+// interface FooterLink {
+//   label: string;
+//   href: string;
+// }
 
 export const Footer: React.FC = () => {
   const logos: FooterLogo[] = [
