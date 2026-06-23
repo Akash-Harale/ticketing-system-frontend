@@ -8,6 +8,7 @@ import {
 } from '@/services/organization.service';
 import { type NotifyFn } from './types';
 import { Section, getErrMsg } from './shared';
+import { usePermission } from '@/context/auth/usePermission';
 
 interface Props {
   notify: NotifyFn;
@@ -26,6 +27,7 @@ const EMPTY_ORG: Partial<CreateOrganizationPayload> = {
 };
 
 export function OrganizationManagement({ notify }: Props) {
+  const { hasPermission } = usePermission();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [states, setStates] = useState<State[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
@@ -114,141 +116,143 @@ export function OrganizationManagement({ notify }: Props) {
         <Section title="Organizations" icon={Building2}>
           <div className="grid gap-8 md:grid-cols-2">
             {/* Create form */}
-            <form onSubmit={handleCreateOrganization} className="space-y-4">
-              <h4 className="text-sm font-bold text-gray-800">Create New Organization</h4>
+            {hasPermission('Program_Unit', 'CREATE') && (
+              <form onSubmit={handleCreateOrganization} className="space-y-4">
+                <h4 className="text-sm font-bold text-gray-800">Create New Organization</h4>
 
-              <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className={labelCls}>Organization ID *</label>
+                    <input
+                      required
+                      placeholder="e.g. ORG-001"
+                      value={newOrg.orgn_id}
+                      onChange={(e) => setNewOrg({ ...newOrg, orgn_id: e.target.value })}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className={labelCls}>Org Type *</label>
+                    <select
+                      required
+                      value={newOrg.orgn_type}
+                      onChange={(e) =>
+                        setNewOrg({
+                          ...newOrg,
+                          orgn_type: e.target.value as CreateOrganizationPayload['orgn_type'],
+                        })
+                      }
+                      className={inputCls}
+                    >
+                      <option value="PU">Program Unit (PU)</option>
+                      <option value="NSS">NSS</option>
+                      <option value="PMU">PMU</option>
+                      <option value="OTH">Other</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="space-y-1">
-                  <label className={labelCls}>Organization ID *</label>
+                  <label className={labelCls}>Organization Name *</label>
                   <input
                     required
-                    placeholder="e.g. ORG-001"
-                    value={newOrg.orgn_id}
-                    onChange={(e) => setNewOrg({ ...newOrg, orgn_id: e.target.value })}
+                    placeholder="e.g. Pune University NSS"
+                    value={newOrg.orgn_name}
+                    onChange={(e) => setNewOrg({ ...newOrg, orgn_name: e.target.value })}
                     className={inputCls}
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className={labelCls}>Org Type *</label>
-                  <select
-                    required
-                    value={newOrg.orgn_type}
-                    onChange={(e) =>
-                      setNewOrg({
-                        ...newOrg,
-                        orgn_type: e.target.value as CreateOrganizationPayload['orgn_type'],
-                      })
-                    }
-                    className={inputCls}
-                  >
-                    <option value="PU">Program Unit (PU)</option>
-                    <option value="NSS">NSS</option>
-                    <option value="PMU">PMU</option>
-                    <option value="OTH">Other</option>
-                  </select>
-                </div>
-              </div>
 
-              <div className="space-y-1">
-                <label className={labelCls}>Organization Name *</label>
-                <input
-                  required
-                  placeholder="e.g. Pune University NSS"
-                  value={newOrg.orgn_name}
-                  onChange={(e) => setNewOrg({ ...newOrg, orgn_name: e.target.value })}
-                  className={inputCls}
-                />
-              </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className={labelCls}>State *</label>
+                    <select
+                      required
+                      value={newOrg.orgn_state}
+                      onChange={(e) =>
+                        setNewOrg({ ...newOrg, orgn_state: e.target.value, orgn_district: '' })
+                      }
+                      className={inputCls}
+                    >
+                      <option value="">Select State</option>
+                      {states.map((s) => (
+                        <option key={s._id} value={s._id}>
+                          {s.state_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className={labelCls}>District</label>
+                    <select
+                      value={newOrg.orgn_district}
+                      onChange={(e) => setNewOrg({ ...newOrg, orgn_district: e.target.value })}
+                      className={`${inputCls} disabled:opacity-50`}
+                      disabled={!newOrg.orgn_state}
+                    >
+                      <option value="">Select District</option>
+                      {districts.map((d) => (
+                        <option key={d._id} value={d._id}>
+                          {d.district_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className={labelCls}>State *</label>
-                  <select
-                    required
-                    value={newOrg.orgn_state}
-                    onChange={(e) =>
-                      setNewOrg({ ...newOrg, orgn_state: e.target.value, orgn_district: '' })
-                    }
-                    className={inputCls}
-                  >
-                    <option value="">Select State</option>
-                    {states.map((s) => (
-                      <option key={s._id} value={s._id}>
-                        {s.state_name}
-                      </option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className={labelCls}>Address 1</label>
+                    <input
+                      placeholder="Street / Building"
+                      value={newOrg.orgn_address1}
+                      onChange={(e) => setNewOrg({ ...newOrg, orgn_address1: e.target.value })}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className={labelCls}>Address 2</label>
+                    <input
+                      placeholder="Area / Locality"
+                      value={newOrg.orgn_address2}
+                      onChange={(e) => setNewOrg({ ...newOrg, orgn_address2: e.target.value })}
+                      className={inputCls}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className={labelCls}>District</label>
-                  <select
-                    value={newOrg.orgn_district}
-                    onChange={(e) => setNewOrg({ ...newOrg, orgn_district: e.target.value })}
-                    className={`${inputCls} disabled:opacity-50`}
-                    disabled={!newOrg.orgn_state}
-                  >
-                    <option value="">Select District</option>
-                    {districts.map((d) => (
-                      <option key={d._id} value={d._id}>
-                        {d.district_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className={labelCls}>Address 1</label>
-                  <input
-                    placeholder="Street / Building"
-                    value={newOrg.orgn_address1}
-                    onChange={(e) => setNewOrg({ ...newOrg, orgn_address1: e.target.value })}
-                    className={inputCls}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className={labelCls}>City / Place</label>
+                    <input
+                      placeholder="City"
+                      value={newOrg.orgn_place}
+                      onChange={(e) => setNewOrg({ ...newOrg, orgn_place: e.target.value })}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className={labelCls}>Pincode *</label>
+                    <input
+                      required
+                      placeholder="6 digits"
+                      pattern="[0-9]{6}"
+                      title="Pincode must be 6 digits"
+                      value={newOrg.orgn_pincode}
+                      onChange={(e) => setNewOrg({ ...newOrg, orgn_pincode: e.target.value })}
+                      className={inputCls}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className={labelCls}>Address 2</label>
-                  <input
-                    placeholder="Area / Locality"
-                    value={newOrg.orgn_address2}
-                    onChange={(e) => setNewOrg({ ...newOrg, orgn_address2: e.target.value })}
-                    className={inputCls}
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className={labelCls}>City / Place</label>
-                  <input
-                    placeholder="City"
-                    value={newOrg.orgn_place}
-                    onChange={(e) => setNewOrg({ ...newOrg, orgn_place: e.target.value })}
-                    className={inputCls}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className={labelCls}>Pincode *</label>
-                  <input
-                    required
-                    placeholder="6 digits"
-                    pattern="[0-9]{6}"
-                    title="Pincode must be 6 digits"
-                    value={newOrg.orgn_pincode}
-                    onChange={(e) => setNewOrg({ ...newOrg, orgn_pincode: e.target.value })}
-                    className={inputCls}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="hover:shadow-indigo-150 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-indigo-700 active:scale-[0.98]"
-              >
-                <Plus className="h-4 w-4" /> Create Organization
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  className="hover:shadow-indigo-150 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-indigo-700 active:scale-[0.98]"
+                >
+                  <Plus className="h-4 w-4" /> Create Organization
+                </button>
+              </form>
+            )}
 
             {/* Existing organizations list */}
             <div className="flex flex-col">

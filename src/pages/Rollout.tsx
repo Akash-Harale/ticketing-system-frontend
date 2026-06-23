@@ -27,6 +27,7 @@ import {
   RolloutTask,
 } from '@/services/rollout.service';
 import { useAuth } from '@/context/auth/useAuth';
+import { usePermission } from '@/context/auth/usePermission';
 
 /* ── STATUS BADGE ── */
 const STATUS: Record<string, string> = {
@@ -363,11 +364,10 @@ interface InstitutePanelProps {
 
 const InstitutePanel = ({ inst, onDropClick, onUpdateSuccess }: InstitutePanelProps) => {
   const [open, setOpen] = useState(false);
-  const { user } = useAuth();
+  const { hasPermission } = usePermission();
   const isAdmin = useMemo(() => {
-    const role = (user?.role_id?.name || '').toLowerCase();
-    return role === 'superadmin' || role === 'admin';
-  }, [user]);
+    return hasPermission('Rollout', 'UPDATE');
+  }, [hasPermission]);
 
   return (
     <div className="border-gray-150 overflow-hidden rounded-xl border bg-white shadow-sm transition-all">
@@ -1385,6 +1385,7 @@ const EditRolloutModal = ({ isOpen, onClose, campaign, onSave }: EditRolloutModa
 /* ── MAIN PAGE ── */
 export const Rollout = () => {
   const { user } = useAuth();
+  const { hasPermission } = usePermission();
   const isCoordinator = useMemo(() => {
     const roleName = (user?.role_id?.name || '').toLowerCase();
     return (
@@ -1412,9 +1413,8 @@ export const Rollout = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const isAdmin = useMemo(() => {
-    const roleName = (user?.role_id?.name || '').toLowerCase();
-    return roleName === 'superadmin' || roleName === 'admin';
-  }, [user]);
+    return hasPermission('Rollout', 'UPDATE');
+  }, [hasPermission]);
 
   const fetchRolloutsAndTemplates = async () => {
     setLoading(true);
@@ -1553,7 +1553,7 @@ export const Rollout = () => {
               </button>
             )}
 
-            {!isCoordinator && (
+            {!isCoordinator && hasPermission('Rollout', 'CREATE') && (
               <>
                 {/* +Template */}
                 <button
@@ -1769,7 +1769,7 @@ export const Rollout = () => {
                   : undefined
               }
               onDropClick={
-                isAdmin
+                hasPermission('Rollout', 'DELETE')
                   ? async (inst) => {
                       if (
                         window.confirm(

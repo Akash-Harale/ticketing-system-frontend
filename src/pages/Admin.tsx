@@ -6,6 +6,7 @@ import { type Resource, type Privilege, type Role } from '@/features/admin/types
 import { RBACManagement } from '@/features/admin/RBACManagement';
 import { OrganizationManagement } from '@/features/admin/OrganizationManagement';
 import { FeaturePermissions } from '@/features/admin/FeaturePermissions';
+import { usePermission } from '@/context/auth/usePermission';
 
 // ── Notification hook ─────────────────────────────────────────────────────────
 function useNotification() {
@@ -24,6 +25,7 @@ function useNotification() {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function Admin() {
   const { note, show, dismiss } = useNotification();
+  const { hasPermission } = usePermission();
 
   // ── RBAC data state ──────────────────────────────────────────────────────────
   const [resources, setResources] = useState<Resource[]>([]);
@@ -32,6 +34,14 @@ export default function Admin() {
 
   // ── Tab state ────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'RBAC' | 'ORG' | 'FEATURES'>('FEATURES');
+
+  // Set the first available tab if FEATURES is not available
+  useEffect(() => {
+    if (activeTab === 'FEATURES' && !hasPermission('RBAC', 'UPDATE')) {
+      if (hasPermission('RBAC', 'READ')) setActiveTab('RBAC');
+      else if (hasPermission('Program_Unit', 'READ')) setActiveTab('ORG');
+    }
+  }, [hasPermission, activeTab]);
 
   // ── Feature Matrix state ─────────────────────────────────────────────────────
   const [tempRolePrivileges, setTempRolePrivileges] = useState<Record<string, string[]>>({});
@@ -131,11 +141,16 @@ export default function Admin() {
   }, []);
 
   // ── Tab button helper ─────────────────────────────────────────────────────────
-  const tabs: { key: 'FEATURES' | 'RBAC' | 'ORG'; label: string }[] = [
-    { key: 'FEATURES', label: 'Feature Permissions' },
-    { key: 'RBAC', label: 'RBAC Management' },
-    { key: 'ORG', label: 'Organization Management' },
-  ];
+  const tabs: { key: 'FEATURES' | 'RBAC' | 'ORG'; label: string }[] = [];
+  if (hasPermission('RBAC', 'UPDATE')) {
+    tabs.push({ key: 'FEATURES', label: 'Feature Permissions' });
+  }
+  if (hasPermission('RBAC', 'READ')) {
+    tabs.push({ key: 'RBAC', label: 'RBAC Management' });
+  }
+  if (hasPermission('Program_Unit', 'READ')) {
+    tabs.push({ key: 'ORG', label: 'Organization Management' });
+  }
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (

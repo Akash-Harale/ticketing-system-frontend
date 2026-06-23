@@ -33,6 +33,7 @@ import {
   EditUserFormData,
 } from '@/features/userManagement/components/EditUserModal';
 import { UserItem } from '@/features/userManagement/data/userManagementData';
+import { usePermission } from '@/context/auth/usePermission';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const TABS = ['Program Unit Details', 'Coordinator Details'] as const;
@@ -139,6 +140,8 @@ const InfoRow = ({
 
 // ── Main Page Component ───────────────────────────────────────────────────────
 export const ProgramUnit = () => {
+  const { hasPermission } = usePermission();
+
   // List state
   const [units, setUnits] = useState<Organization[]>([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -550,18 +553,22 @@ export const ProgramUnit = () => {
                   />
                   {/* Action Buttons */}
                   <div className="mt-6 flex flex-col gap-3">
-                    <button
-                      onClick={() => setShowEditUnitModal(true)}
-                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-                    >
-                      Edit Unit Details
-                    </button>
-                    <button
-                      onClick={() => handleDeleteUnit(selectedUnit._id)}
-                      className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-100"
-                    >
-                      Delete Unit
-                    </button>
+                    {hasPermission('Program_Unit', 'UPDATE') && (
+                      <button
+                        onClick={() => setShowEditUnitModal(true)}
+                        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                      >
+                        Edit Unit Details
+                      </button>
+                    )}
+                    {hasPermission('Program_Unit', 'DELETE') && (
+                      <button
+                        onClick={() => handleDeleteUnit(selectedUnit._id)}
+                        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-100"
+                      >
+                        Delete Unit
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -641,12 +648,14 @@ export const ProgramUnit = () => {
                             Email
                           </a>
                         </div>
-                        <button
-                          onClick={() => setShowEditCoordinatorModal(true)}
-                          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-                        >
-                          Edit Coordinator Details
-                        </button>
+                        {hasPermission('Program_Unit', 'UPDATE') && (
+                          <button
+                            onClick={() => setShowEditCoordinatorModal(true)}
+                            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                          >
+                            Edit Coordinator Details
+                          </button>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -674,14 +683,16 @@ export const ProgramUnit = () => {
               Manage NSS Program Units and their coordinators
             </p>
           </div>
-          <button
-            id="btn-add-program-unit"
-            onClick={openModal}
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-indigo-500 active:bg-indigo-700"
-          >
-            <Plus className="h-4 w-4" />
-            Add Program Unit
-          </button>
+          {hasPermission('Program_Unit', 'CREATE') && (
+            <button
+              id="btn-add-program-unit"
+              onClick={openModal}
+              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-indigo-500 active:bg-indigo-700"
+            >
+              <Plus className="h-4 w-4" />
+              Add Program Unit
+            </button>
+          )}
         </div>
 
         {/* Search */}
