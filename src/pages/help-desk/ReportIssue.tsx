@@ -28,7 +28,7 @@ export const ReportIssue = () => {
     try {
       const finalSubject = selectedSubject === 'Other' ? subject : selectedSubject;
       if (!finalSubject.trim()) {
-        setError('Subject cannot be empty');
+        setError('Title cannot be empty');
         setLoading(false);
         return;
       }
@@ -80,7 +80,7 @@ export const ReportIssue = () => {
 
           <div className="mb-4">
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Subject Category *
+              Title Category *
             </label>
             <select
               value={selectedSubject}
@@ -97,7 +97,7 @@ export const ReportIssue = () => {
             {selectedSubject === 'Other' && (
               <>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Custom Subject *
+                  Custom Title *
                 </label>
                 <input
                   type="text"

@@ -113,10 +113,10 @@ export const Footer: React.FC = () => {
 
             {/* Info Text */}
             <div className="flex flex-col gap-1 text-[11px] leading-relaxed text-slate-300 md:text-[13px]">
-              <p className="font-semibold text-slate-100">
+              {/* <p className="font-semibold text-slate-100">
                 Website Content Managed by National Service Scheme
-              </p>
-              <p>
+              </p> */}
+              {/* <p>
                 Designed, Developed and Hosted by{' '}
                 <a
                   href="https://www.nic.in/"
@@ -126,8 +126,8 @@ export const Footer: React.FC = () => {
                 >
                   National Informatics Centre( NIC )
                 </a>
-              </p>
-              <p className="text-[10px] text-slate-400 md:text-[11px]">Last Updated: 08 Jun 2026</p>
+              </p>*/}
+              {/* <p className="text-[10px] text-slate-400 md:text-[11px]">Last Updated: 08 Jun 2026</p> */}
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ export interface Ticket {
   description: string;
   ticketType: 'feedback' | 'issue';
   status: 'open' | 'in progress' | 'resolved' | 'closed';
+  priority?: string;
   statusDescription?: string;
   resolvedBy?: {
     _id: string;

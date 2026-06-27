@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { ticketService, Ticket, TicketFilters } from '@/services/ticket.service';
 import { useAuth } from '@/context/auth/useAuth';
+import * as XLSX from 'xlsx';
 import {
   FileText,
   Loader2,
@@ -10,13 +11,13 @@ import {
   ChevronDown,
   ChevronUp,
   Calendar,
-  Filter,
   MessageSquare,
   AlertCircle,
   CheckCircle2,
   Clock,
   XCircle,
   Hash,
+  Download,
 } from 'lucide-react';
 
 // Lucide v0.x does not export Ticket icon — using a simple SVG fallback
@@ -101,7 +102,6 @@ export const MyReports = () => {
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [startDate, setStartDate] = useState(oneMonthAgoStr());
   const [endDate, setEndDate] = useState(todayStr());
-  const [showFilters, setShowFilters] = useState(false);
 
   // Drawer
   const [selected, setSelected] = useState<Ticket | null>(null);
@@ -175,6 +175,37 @@ export const MyReports = () => {
 
   const statusChanged = selected && drawerStatus !== selected.status;
 
+  const handleExport = () => {
+    if (tickets.length === 0) return;
+
+    const exportData = tickets.map((t) => {
+      const row: Record<string, string | number> = {};
+      if (activeTab === 'tickets') {
+        row['Ticket No.'] = t.ticketNumber ?? '—';
+      }
+      row['Created Date'] = fmt(t.createdAt);
+      row['Title'] = t.subject;
+      row['Created By'] = t.createdBy?.member_id?.name || t.createdBy?.email || 'Unknown';
+      row['Organization'] = t.orgn_id?.orgn_name || 'N/A';
+
+      if (activeTab === 'tickets') {
+        row['Status'] = t.status;
+        row['Priority'] = t.priority || 'Low';
+      }
+
+      row['Description'] = t.description;
+      if (activeTab === 'tickets') {
+        row['Admin Note'] = t.statusDescription || '';
+      }
+      return row;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, activeTab === 'tickets' ? 'Tickets' : 'Feedback');
+    XLSX.writeFile(wb, `${activeTab}_${todayStr()}.xlsx`);
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -223,7 +254,7 @@ export const MyReports = () => {
       {/* Search + Filter Bar */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {/* Search */}
-        <div className="relative min-w-[220px] flex-1">
+        <div className="relative w-64">
           <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
@@ -233,6 +264,21 @@ export const MyReports = () => {
             className="w-full rounded-lg border border-gray-200 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
           />
         </div>
+
+        {/* Status Filter */}
+        {activeTab === 'tickets' && (
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+          >
+            <option value="">All Statuses</option>
+            <option value="open">Open</option>
+            <option value="in progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
+        )}
 
         {/* Date Range */}
         <div className="flex items-center gap-2">
@@ -252,16 +298,6 @@ export const MyReports = () => {
           />
         </div>
 
-        {/* Filter toggle */}
-        <button
-          onClick={() => setShowFilters((v) => !v)}
-          className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition ${showFilters ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`}
-        >
-          <Filter className="h-4 w-4" />
-          Filters
-          {showFilters ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-        </button>
-
         {/* Sort */}
         <button
           onClick={() => setSortOrder((o) => (o === 'desc' ? 'asc' : 'desc'))}
@@ -275,27 +311,9 @@ export const MyReports = () => {
           )}
           {sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}
         </button>
-      </div>
 
-      {/* Extended Filters */}
-      {showFilters && (
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
-          {activeTab === 'tickets' && (
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-600">Status:</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-              >
-                <option value="">All Statuses</option>
-                <option value="open">Open</option>
-                <option value="in progress">In Progress</option>
-                <option value="resolved">Resolved</option>
-                <option value="closed">Closed</option>
-              </select>
-            </div>
-          )}
+        {/* Reset */}
+        {(search || statusFilter || startDate !== oneMonthAgoStr() || endDate !== todayStr()) && (
           <button
             onClick={() => {
               setStatusFilter('');
@@ -303,12 +321,23 @@ export const MyReports = () => {
               setStartDate(oneMonthAgoStr());
               setEndDate(todayStr());
             }}
-            className="ml-auto rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600 transition hover:bg-gray-100"
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-600 transition hover:bg-gray-100"
           >
-            Reset Filters
+            Reset
           </button>
-        </div>
-      )}
+        )}
+
+        {/* Download */}
+        <button
+          onClick={handleExport}
+          disabled={tickets.length === 0}
+          className="ml-auto flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50"
+          title="Download as Excel"
+        >
+          <Download className="h-4 w-4" />
+          Download Excel
+        </button>
+      </div>
 
       {/* Error */}
       {error && (
@@ -324,16 +353,22 @@ export const MyReports = () => {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-[11px] font-bold tracking-wider text-gray-500 uppercase">
                 {activeTab === 'tickets' && <th className="px-5 py-4">Ticket No.</th>}
-                <th className="px-5 py-4">Subject</th>
-                {activeTab === 'tickets' && <th className="px-5 py-4">Status</th>}
                 <th className="px-5 py-4">Created Date</th>
+                <th className="px-5 py-4">Title</th>
+                <th className="px-5 py-4">Created By</th>
+                {activeTab === 'tickets' && (
+                  <>
+                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4">Priority</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
                   <td
-                    colSpan={activeTab === 'tickets' ? 4 : 2}
+                    colSpan={activeTab === 'tickets' ? 6 : 3}
                     className="py-16 text-center text-gray-400"
                   >
                     <Loader2 className="mx-auto h-6 w-6 animate-spin" />
@@ -343,7 +378,7 @@ export const MyReports = () => {
               ) : tickets.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={activeTab === 'tickets' ? 4 : 2}
+                    colSpan={activeTab === 'tickets' ? 6 : 3}
                     className="py-16 text-center text-gray-400"
                   >
                     <FileText className="mx-auto h-8 w-8 opacity-30" />
@@ -367,13 +402,26 @@ export const MyReports = () => {
                         </span>
                       </td>
                     )}
-                    <td className="px-5 py-4 font-medium text-gray-900">{ticket.subject}</td>
-                    {activeTab === 'tickets' && (
-                      <td className="px-5 py-4">
-                        <StatusBadge status={ticket.status} />
-                      </td>
-                    )}
                     <td className="px-5 py-4 text-xs text-gray-500">{fmt(ticket.createdAt)}</td>
+                    <td className="px-5 py-4 font-medium text-gray-900">{ticket.subject}</td>
+                    <td className="px-5 py-4">
+                      <p className="text-xs font-medium text-gray-900">
+                        {ticket.createdBy?.member_id?.name || ticket.createdBy?.email || 'Unknown'}
+                      </p>
+                      <p className="text-[11px] text-gray-500">
+                        {ticket.orgn_id?.orgn_name || 'N/A'}
+                      </p>
+                    </td>
+                    {activeTab === 'tickets' && (
+                      <>
+                        <td className="px-5 py-4">
+                          <StatusBadge status={ticket.status} />
+                        </td>
+                        <td className="px-5 py-4 text-xs font-medium text-gray-700 capitalize">
+                          {ticket.priority || 'Low'}
+                        </td>
+                      </>
+                    )}
                   </tr>
                 ))
               )}
@@ -416,22 +464,32 @@ export const MyReports = () => {
 
             {/* Drawer Body */}
             <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-              {/* Subject */}
+              {/* Title */}
               <div>
                 <p className="text-[10px] font-bold tracking-wider text-gray-400 uppercase">
-                  Subject
+                  Title
                 </p>
                 <p className="mt-1 text-base font-semibold text-gray-900">{selected.subject}</p>
               </div>
 
-              {/* Status */}
+              {/* Status & Priority */}
               {activeTab === 'tickets' && (
-                <div>
-                  <p className="text-[10px] font-bold tracking-wider text-gray-400 uppercase">
-                    Status
-                  </p>
-                  <div className="mt-1">
-                    <StatusBadge status={selected.status} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold tracking-wider text-gray-400 uppercase">
+                      Status
+                    </p>
+                    <div className="mt-1">
+                      <StatusBadge status={selected.status} />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold tracking-wider text-gray-400 uppercase">
+                      Priority
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-800 capitalize">
+                      {selected.priority || 'Low'}
+                    </p>
                   </div>
                 </div>
               )}
