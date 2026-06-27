@@ -30,6 +30,7 @@ import {
 import { MultiSelectDropdown, MultiSelectOption } from '../components/ui/MultiSelectDropdown';
 import { StateCard } from '../features/programUnit/components/StateCard';
 import { api } from '../api/axios';
+import { usePermission } from '../context/auth/usePermission';
 
 /* ─────────────────────────────────────────────
    USER CARD
@@ -579,6 +580,7 @@ const ProgramUnitUsersContent = ({
 ───────────────────────────────────────────── */
 
 export const Users = () => {
+  const { hasPermission } = usePermission();
   const [openAccordion, setOpenAccordion] = useState<string | null>('nss');
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -774,6 +776,18 @@ export const Users = () => {
     }
   };
 
+  const handleDeleteUser = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    try {
+      await api.delete(`/members/${id}`);
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error deleting user', error);
+      alert('Failed to delete user');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ── Header ── */}
@@ -820,15 +834,17 @@ export const Users = () => {
               </button>
             )}
 
-            <button
-              id="add-user-btn"
-              onClick={() => setShowAddModal(true)}
-              className="flex flex-shrink-0 items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:bg-indigo-700 hover:shadow-md active:scale-95"
-            >
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Add User</span>
-              <span className="sm:hidden">Add</span>
-            </button>
+            {hasPermission('Users', 'CREATE') && (
+              <button
+                id="add-user-btn"
+                onClick={() => setShowAddModal(true)}
+                className="flex flex-shrink-0 items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:bg-indigo-700 hover:shadow-md active:scale-95"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Add User</span>
+                <span className="sm:hidden">Add</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -935,7 +951,14 @@ export const Users = () => {
       <UserDetailDrawer
         user={selectedUser}
         onClose={() => setSelectedUser(null)}
-        onEditClick={() => setShowEditModal(true)}
+        onEditClick={hasPermission('Users', 'UPDATE') ? () => setShowEditModal(true) : undefined}
+        onDeleteClick={
+          hasPermission('Users', 'DELETE')
+            ? () => {
+                if (selectedUser) handleDeleteUser(selectedUser.id);
+              }
+            : undefined
+        }
       />
     </div>
   );

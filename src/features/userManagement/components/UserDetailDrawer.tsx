@@ -17,6 +17,7 @@ interface UserDetailDrawerProps {
   user: UserItem | null;
   onClose: () => void;
   onEditClick?: () => void;
+  onDeleteClick?: () => void;
 }
 
 const InfoRow = ({
@@ -39,7 +40,12 @@ const InfoRow = ({
   </div>
 );
 
-export const UserDetailDrawer = ({ user, onClose, onEditClick }: UserDetailDrawerProps) => {
+export const UserDetailDrawer = ({
+  user,
+  onClose,
+  onEditClick,
+  onDeleteClick,
+}: UserDetailDrawerProps) => {
   if (!user) return null;
 
   const statusClass =
@@ -159,6 +165,15 @@ export const UserDetailDrawer = ({ user, onClose, onEditClick }: UserDetailDrawe
                 className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
               >
                 Edit User Details
+              </button>
+            )}
+            {onDeleteClick && (
+              <button
+                id={`user-delete-${user.id}`}
+                onClick={onDeleteClick}
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-100"
+              >
+                Delete User
               </button>
             )}
           </div>

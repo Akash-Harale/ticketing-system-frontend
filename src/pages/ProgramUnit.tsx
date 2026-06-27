@@ -24,6 +24,16 @@ import {
 import { locationService, State, District } from '@/services/location.service';
 import { StateCard } from '@/features/programUnit/components/StateCard';
 import { MultiSelectDropdown, MultiSelectOption } from '@/components/ui/MultiSelectDropdown';
+import {
+  EditProgramUnitModal,
+  EditProgramUnitFormData,
+} from '@/features/programUnit/components/EditProgramUnitModal';
+import {
+  EditUserModal,
+  EditUserFormData,
+} from '@/features/userManagement/components/EditUserModal';
+import { UserItem } from '@/features/userManagement/data/userManagementData';
+import { usePermission } from '@/context/auth/usePermission';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const TABS = ['Program Unit Details', 'Coordinator Details'] as const;
@@ -130,6 +140,8 @@ const InfoRow = ({
 
 // ── Main Page Component ───────────────────────────────────────────────────────
 export const ProgramUnit = () => {
+  const { hasPermission } = usePermission();
+
   // List state
   const [units, setUnits] = useState<Organization[]>([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -159,6 +171,9 @@ export const ProgramUnit = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState('');
   const [submitError, setSubmitError] = useState('');
+
+  const [showEditUnitModal, setShowEditUnitModal] = useState(false);
+  const [showEditCoordinatorModal, setShowEditCoordinatorModal] = useState(false);
 
   // ── Fetch program units ───────────────────────────────────────────────────
   const fetchUnits = useCallback(async () => {
@@ -272,6 +287,45 @@ export const ProgramUnit = () => {
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteUnit = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this program unit?')) return;
+    try {
+      await organizationService.remove(id);
+      setSelectedUnit(null);
+      await fetchUnits();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete program unit.');
+    }
+  };
+
+  const handleEditUnitSubmit = async (id: string, data: EditProgramUnitFormData) => {
+    try {
+      const updated = await organizationService.update(id, data);
+      setSelectedUnit(updated.data);
+      setShowEditUnitModal(false);
+      await fetchUnits();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update program unit.');
+    }
+  };
+
+  const handleEditCoordinatorSubmit = async (data: EditUserFormData) => {
+    if (!selectedCoordinator) return;
+    try {
+      const { api } = await import('@/api/axios');
+      await api.put(`/members/${selectedCoordinator._id}`, data);
+      setShowEditCoordinatorModal(false);
+      if (selectedUnit) {
+        openUnitDetails(selectedUnit);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update coordinator.');
     }
   };
 
@@ -497,6 +551,25 @@ export const ProgramUnit = () => {
                       year: 'numeric',
                     })}
                   />
+                  {/* Action Buttons */}
+                  <div className="mt-6 flex flex-col gap-3">
+                    {hasPermission('Program_Unit', 'UPDATE') && (
+                      <button
+                        onClick={() => setShowEditUnitModal(true)}
+                        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                      >
+                        Edit Unit Details
+                      </button>
+                    )}
+                    {hasPermission('Program_Unit', 'DELETE') && (
+                      <button
+                        onClick={() => handleDeleteUnit(selectedUnit._id)}
+                        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-100"
+                      >
+                        Delete Unit
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -556,23 +629,33 @@ export const ProgramUnit = () => {
                       />
 
                       {/* Action Buttons */}
-                      <div className="mt-6 flex gap-3">
-                        {selectedCoordinator.mobile && (
+                      <div className="mt-6 flex flex-col gap-3">
+                        <div className="flex gap-3">
+                          {selectedCoordinator.mobile && (
+                            <a
+                              href={`tel:${selectedCoordinator.mobile}`}
+                              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                            >
+                              <Phone className="h-4 w-4" />
+                              Call
+                            </a>
+                          )}
                           <a
-                            href={`tel:${selectedCoordinator.mobile}`}
-                            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                            href={`mailto:${selectedCoordinator.email}`}
+                            className="text-indigo-705 flex flex-1 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold transition hover:bg-indigo-100"
                           >
-                            <Phone className="h-4 w-4" />
-                            Call
+                            <Mail className="h-4 w-4" />
+                            Email
                           </a>
+                        </div>
+                        {hasPermission('Program_Unit', 'UPDATE') && (
+                          <button
+                            onClick={() => setShowEditCoordinatorModal(true)}
+                            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                          >
+                            Edit Coordinator Details
+                          </button>
                         )}
-                        <a
-                          href={`mailto:${selectedCoordinator.email}`}
-                          className="text-indigo-705 flex flex-1 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold transition hover:bg-indigo-100"
-                        >
-                          <Mail className="h-4 w-4" />
-                          Email
-                        </a>
                       </div>
                     </div>
                   ) : (
@@ -600,14 +683,16 @@ export const ProgramUnit = () => {
               Manage NSS Program Units and their coordinators
             </p>
           </div>
-          <button
-            id="btn-add-program-unit"
-            onClick={openModal}
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-indigo-500 active:bg-indigo-700"
-          >
-            <Plus className="h-4 w-4" />
-            Add Program Unit
-          </button>
+          {hasPermission('Program_Unit', 'CREATE') && (
+            <button
+              id="btn-add-program-unit"
+              onClick={openModal}
+              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-indigo-500 active:bg-indigo-700"
+            >
+              <Plus className="h-4 w-4" />
+              Add Program Unit
+            </button>
+          )}
         </div>
 
         {/* Search */}
@@ -1107,6 +1192,36 @@ export const ProgramUnit = () => {
             </form>
           </div>
         </div>
+      )}
+      <EditProgramUnitModal
+        isOpen={showEditUnitModal}
+        onClose={() => setShowEditUnitModal(false)}
+        unit={selectedUnit}
+        onSubmit={handleEditUnitSubmit}
+      />
+
+      {selectedCoordinator && (
+        <EditUserModal
+          isOpen={showEditCoordinatorModal}
+          onClose={() => setShowEditCoordinatorModal(false)}
+          user={
+            {
+              id: selectedCoordinator._id,
+              name: selectedCoordinator.name,
+              email: selectedCoordinator.email,
+              phone: selectedCoordinator.mobile,
+              designation: selectedCoordinator.designation || '',
+              role: selectedCoordinator.role_id?.name || '',
+              department: selectedUnit?.orgn_name || '',
+              status: selectedCoordinator.active ? 'Active' : 'Inactive',
+              gender: 'Other',
+              joinedDate: '',
+              avatarInitials: selectedCoordinator.name.substring(0, 2).toUpperCase(),
+              avatarColor: 'from-emerald-500 to-teal-600',
+            } as UserItem
+          }
+          onSubmit={handleEditCoordinatorSubmit}
+        />
       )}
     </div>
   );

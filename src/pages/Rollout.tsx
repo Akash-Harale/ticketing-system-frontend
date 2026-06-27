@@ -27,6 +27,7 @@ import {
   RolloutTask,
 } from '@/services/rollout.service';
 import { useAuth } from '@/context/auth/useAuth';
+import { usePermission } from '@/context/auth/usePermission';
 
 /* ── STATUS BADGE ── */
 const STATUS: Record<string, string> = {
@@ -53,6 +54,40 @@ const typeBadge = (type: string) => {
   return 'bg-emerald-50 text-emerald-600';
 };
 
+/* ── REMARKS HISTORY COMPONENT ── */
+const RemarksHistory = ({ remarks }: { remarks?: { date?: string; remark: string }[] }) => {
+  const [show, setShow] = useState(false);
+  if (!remarks || remarks.length === 0) return null;
+  return (
+    <div className="mt-2 text-xs">
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        className="text-[10px] font-bold text-indigo-600 hover:underline"
+      >
+        {show ? 'Hide History' : `View History (${remarks.length})`}
+      </button>
+      {show && (
+        <div className="mt-2 flex max-h-32 flex-col gap-2 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 p-2">
+          {remarks.map((r, i) => (
+            <div
+              key={i}
+              className="flex flex-col border-b border-gray-200 pb-1 last:border-0 last:pb-0"
+            >
+              <span className="text-[9px] text-gray-400">
+                {r.date
+                  ? new Date(r.date).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                  : 'Unknown time'}
+              </span>
+              <span className="text-gray-700">{r.remark}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ── ADMIN/SUPERADMIN EDITABLE TASK ROW ── */
 interface AdminTaskRowProps {
   task: RolloutTask;
@@ -77,7 +112,8 @@ const AdminTaskRow = ({ task, orgId, isAdmin, onSaveSuccess, index }: AdminTaskR
   const [actualStart, setActualStart] = useState(formatDateForInput(task.actual_start_date));
   const [actualEnd, setActualEnd] = useState(formatDateForInput(task.actual_end_date));
   const [status, setStatus] = useState(task.task_status);
-  const [remarks, setRemarks] = useState(task.tracking_comments || '');
+  const [newRemark, setNewRemark] = useState('');
+  const [remarksList, setRemarksList] = useState(task.remarks || []);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -85,19 +121,19 @@ const AdminTaskRow = ({ task, orgId, isAdmin, onSaveSuccess, index }: AdminTaskR
   const initialStart = formatDateForInput(task.actual_start_date);
   const initialEnd = formatDateForInput(task.actual_end_date);
   const initialStatus = task.task_status;
-  const initialRemarks = task.tracking_comments || '';
 
   const hasChanges =
     actualStart !== initialStart ||
     actualEnd !== initialEnd ||
     status !== initialStatus ||
-    remarks !== initialRemarks;
+    newRemark.trim() !== '';
 
   useEffect(() => {
     setActualStart(formatDateForInput(task.actual_start_date));
     setActualEnd(formatDateForInput(task.actual_end_date));
     setStatus(task.task_status);
-    setRemarks(task.tracking_comments || '');
+    setNewRemark('');
+    setRemarksList(task.remarks || []);
   }, [task]);
 
   const handleSave = async (
@@ -120,13 +156,17 @@ const AdminTaskRow = ({ task, orgId, isAdmin, onSaveSuccess, index }: AdminTaskR
       return;
     }
 
+    const updatedRemarks = newRemark.trim()
+      ? [...remarksList, { remark: newRemark.trim() }]
+      : remarksList;
+
     setSaving(true);
     try {
       await rolloutService.updateTaskForOrg(orgId, task.task_id, {
         task_status: activeStatus,
         actual_start_date: actualStart ? new Date(actualStart).toISOString() : null,
         actual_end_date: actualEnd ? new Date(actualEnd).toISOString() : null,
-        tracking_comments: remarks.trim(),
+        remarks: updatedRemarks,
       });
       setSuccessMsg('Saved successfully!');
       if (overrideStatus) {
@@ -267,16 +307,17 @@ const AdminTaskRow = ({ task, orgId, isAdmin, onSaveSuccess, index }: AdminTaskR
       <div className="flex flex-col items-end gap-3 sm:flex-row">
         <div className="w-full flex-1">
           <label className="mb-1 block text-[9px] font-bold tracking-wider text-gray-400 uppercase">
-            Remarks / Comments
+            Add Remark / Comment
           </label>
           <textarea
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
+            value={newRemark}
+            onChange={(e) => setNewRemark(e.target.value)}
             disabled={!isAdmin}
-            placeholder={!isAdmin ? 'No remarks' : 'Remarks (optional)'}
+            placeholder={!isAdmin ? 'No remarks' : 'New remark (optional)'}
             rows={1}
             className="w-full resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 disabled:bg-gray-50 disabled:text-gray-400"
           />
+          <RemarksHistory remarks={remarksList} />
         </div>
 
         {isAdmin && (
@@ -323,11 +364,10 @@ interface InstitutePanelProps {
 
 const InstitutePanel = ({ inst, onDropClick, onUpdateSuccess }: InstitutePanelProps) => {
   const [open, setOpen] = useState(false);
-  const { user } = useAuth();
+  const { hasPermission } = usePermission();
   const isAdmin = useMemo(() => {
-    const role = (user?.role_id?.name || '').toLowerCase();
-    return role === 'superadmin' || role === 'admin';
-  }, [user]);
+    return hasPermission('Rollout', 'UPDATE');
+  }, [hasPermission]);
 
   return (
     <div className="border-gray-150 overflow-hidden rounded-xl border bg-white shadow-sm transition-all">
@@ -756,7 +796,8 @@ const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess, index }: CoordinatorTa
   const [actualEnd, setActualEnd] = useState(
     task.actual_end_date ? new Date(task.actual_end_date).toISOString().split('T')[0] : '',
   );
-  const [remarks, setRemarks] = useState(task.tracking_comments || '');
+  const [newRemark, setNewRemark] = useState('');
+  const [remarksList, setRemarksList] = useState(task.remarks || []);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -767,7 +808,6 @@ const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess, index }: CoordinatorTa
   const initialEnd = task.actual_end_date
     ? new Date(task.actual_end_date).toISOString().split('T')[0]
     : '';
-  const initialRemarks = task.tracking_comments || '';
   const isLocked = task.task_status === 'Complete' || task.task_status === 'Closed';
 
   const hasChanges =
@@ -775,7 +815,19 @@ const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess, index }: CoordinatorTa
     (status !== task.task_status ||
       actualStart !== initialStart ||
       actualEnd !== initialEnd ||
-      remarks !== initialRemarks);
+      newRemark.trim() !== '');
+
+  useEffect(() => {
+    setStatus(task.task_status);
+    setActualStart(
+      task.actual_start_date ? new Date(task.actual_start_date).toISOString().split('T')[0] : '',
+    );
+    setActualEnd(
+      task.actual_end_date ? new Date(task.actual_end_date).toISOString().split('T')[0] : '',
+    );
+    setNewRemark('');
+    setRemarksList(task.remarks || []);
+  }, [task]);
 
   const handleSave = async () => {
     if (isLocked) return;
@@ -821,13 +873,17 @@ const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess, index }: CoordinatorTa
       return;
     }
 
+    const updatedRemarks = newRemark.trim()
+      ? [...remarksList, { remark: newRemark.trim() }]
+      : remarksList;
+
     setSaving(true);
     try {
       await rolloutService.updateTaskForOrg(orgId, task.task_id, {
         task_status: status,
         actual_start_date: new Date(actualStart).toISOString(),
         actual_end_date: new Date(actualEnd).toISOString(),
-        tracking_comments: remarks.trim(),
+        remarks: updatedRemarks,
       });
       setSuccessMsg('Saved!');
       setTimeout(() => setSuccessMsg(''), 3000);
@@ -957,13 +1013,14 @@ const CoordinatorTaskRow = ({ task, orgId, onSaveSuccess, index }: CoordinatorTa
         </td>
         <td className="px-4 py-4 align-top">
           <textarea
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
+            value={newRemark}
+            onChange={(e) => setNewRemark(e.target.value)}
             disabled={isLocked}
-            placeholder={isLocked ? 'Remarks (Locked)' : 'Remarks (optional)'}
+            placeholder={isLocked ? 'Remarks (Locked)' : 'New remark (optional)'}
             rows={2}
             className="w-full resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-700 transition outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 disabled:bg-gray-50 disabled:text-gray-400"
           />
+          <RemarksHistory remarks={remarksList} />
         </td>
         <td className="px-4 py-4 text-right align-top">
           <div className="flex flex-col items-end gap-2">
@@ -1328,6 +1385,7 @@ const EditRolloutModal = ({ isOpen, onClose, campaign, onSave }: EditRolloutModa
 /* ── MAIN PAGE ── */
 export const Rollout = () => {
   const { user } = useAuth();
+  const { hasPermission } = usePermission();
   const isCoordinator = useMemo(() => {
     const roleName = (user?.role_id?.name || '').toLowerCase();
     return (
@@ -1355,9 +1413,8 @@ export const Rollout = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const isAdmin = useMemo(() => {
-    const roleName = (user?.role_id?.name || '').toLowerCase();
-    return roleName === 'superadmin' || roleName === 'admin';
-  }, [user]);
+    return hasPermission('Rollout', 'UPDATE');
+  }, [hasPermission]);
 
   const fetchRolloutsAndTemplates = async () => {
     setLoading(true);
@@ -1496,7 +1553,7 @@ export const Rollout = () => {
               </button>
             )}
 
-            {!isCoordinator && (
+            {!isCoordinator && hasPermission('Rollout', 'CREATE') && (
               <>
                 {/* +Template */}
                 <button
@@ -1712,7 +1769,7 @@ export const Rollout = () => {
                   : undefined
               }
               onDropClick={
-                isAdmin
+                hasPermission('Rollout', 'DELETE')
                   ? async (inst) => {
                       if (
                         window.confirm(

@@ -6,10 +6,10 @@ interface FooterLogo {
   href?: string;
 }
 
-interface FooterLink {
-  label: string;
-  href: string;
-}
+// interface FooterLink {
+//   label: string;
+//   href: string;
+// }
 
 export const Footer: React.FC = () => {
   const logos: FooterLogo[] = [
@@ -29,14 +29,14 @@ export const Footer: React.FC = () => {
     { src: '/cpgrams.jpg', alt: 'CPGRAMS', href: 'https://pgportal.gov.in/' },
   ];
 
-  const links: FooterLink[] = [
-    { label: 'Website Policies', href: '#' },
-    { label: 'Site Map', href: '#' },
-    { label: 'Feedback', href: '#' },
-    { label: 'Contact Us', href: '#' },
-    { label: 'Help', href: '#' },
-    { label: 'WIM', href: '#' },
-  ];
+  // const links: FooterLink[] = [
+  //   { label: 'Website Policies', href: '#' },
+  //   { label: 'Site Map', href: '#' },
+  //   { label: 'Feedback', href: '#' },
+  //   { label: 'Contact Us', href: '#' },
+  //   { label: 'Help', href: '#' },
+  //   { label: 'WIM', href: '#' },
+  // ];
 
   return (
     <footer className="w-full font-sans">
@@ -76,7 +76,7 @@ export const Footer: React.FC = () => {
 
       {/* Middle Links Row */}
       <div className="w-full bg-[#391988] py-4 shadow-inner">
-        <div className="mx-auto max-w-[1400px] px-4">
+        {/* <div className="mx-auto max-w-[1400px] px-4">
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs font-medium text-white md:text-sm">
             {links.map((link, index) => (
               <React.Fragment key={index}>
@@ -90,7 +90,7 @@ export const Footer: React.FC = () => {
               </React.Fragment>
             ))}
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Bottom Info Row */}
@@ -107,17 +107,16 @@ export const Footer: React.FC = () => {
           <div className="flex flex-col items-center justify-center gap-6 text-center md:flex-row md:text-left">
             {/* Built on CMF Logo */}
             <div className="flex items-center gap-3">
-              <img src="/cmf-logo.png" alt="BUILT ON CMF" className="h-9 object-contain" />
-              {/* Vertical Divider */}
-              <div className="hidden h-10 border-l border-slate-700 md:block"></div>
+              {/* <img src="/cmf-logo.png" alt="BUILT ON CMF" className="h-9 object-contain" /> */}
+              {/* <div className="hidden h-10 border-l border-slate-700 md:block"></div> */}
             </div>
 
             {/* Info Text */}
             <div className="flex flex-col gap-1 text-[11px] leading-relaxed text-slate-300 md:text-[13px]">
-              <p className="font-semibold text-slate-100">
+              {/* <p className="font-semibold text-slate-100">
                 Website Content Managed by National Service Scheme
-              </p>
-              <p>
+              </p> */}
+              {/* <p>
                 Designed, Developed and Hosted by{' '}
                 <a
                   href="https://www.nic.in/"
@@ -127,8 +126,8 @@ export const Footer: React.FC = () => {
                 >
                   National Informatics Centre( NIC )
                 </a>
-              </p>
-              <p className="text-[10px] text-slate-400 md:text-[11px]">Last Updated: 08 Jun 2026</p>
+              </p>*/}
+              {/* <p className="text-[10px] text-slate-400 md:text-[11px]">Last Updated: 08 Jun 2026</p> */}
             </div>
           </div>
         </div>

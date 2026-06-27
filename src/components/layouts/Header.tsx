@@ -48,11 +48,7 @@ export const Header = ({ onMenuClick, onProfileClick }: HeaderProps) => {
         <div className="mx-auto flex h-34 max-w-[1400px] items-center justify-between px-4 py-0">
           <div className="flex items-center">
             <Link to="/">
-              <img
-                src="https://nss.gov.in/sites/all/themes/youthaffair/logo.png"
-                alt="NSS Logo"
-                className="h-34 object-contain"
-              />
+              <img src="logo.png" alt="NSS Logo" className="h-34 object-contain" />
             </Link>
           </div>
 
@@ -112,7 +108,7 @@ export const Header = ({ onMenuClick, onProfileClick }: HeaderProps) => {
                 </Link>
                 <Link
                   to="/dashboard"
-                  className="bg-green-600 px-6 py-4 text-sm font-semibold whitespace-nowrap text-white transition hover:bg-green-700"
+                  className="px-6 py-4 text-sm font-semibold whitespace-nowrap text-white transition hover:bg-[#ef4a24]/85"
                 >
                   DASHBOARD
                 </Link>

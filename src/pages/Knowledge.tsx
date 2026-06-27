@@ -14,10 +14,10 @@ import {
 } from 'lucide-react';
 import { Tab, TabItem } from '../components/ui/Tab';
 import { Accordion } from '../components/ui/Accordion';
-import { useAuth } from '../context/auth/useAuth';
 import { api } from '../api/axios';
 import { env } from '../config/env';
 import { AddKnowledgeModal } from '../features/knowledge/components/AddKnowledgeModal';
+import { usePermission } from '../context/auth/usePermission';
 
 interface FAQItem {
   id: string;
@@ -268,7 +268,7 @@ const EmptyState = ({ message }: { message: string }) => (
    ───────────────────────────────────────────── */
 
 export const Knowledge = () => {
-  const { user } = useAuth();
+  const { hasPermission } = usePermission();
   const [activeTab, setActiveTab] = useState<string>('faq');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -387,7 +387,7 @@ export const Knowledge = () => {
               </button>
             )}
 
-            {user?.role_id?.name?.toLowerCase() === 'superadmin' && (
+            {hasPermission('Mediacorner', 'CREATE') && (
               <button
                 onClick={() => setShowAddModal(true)}
                 className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md active:scale-95"

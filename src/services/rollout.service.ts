@@ -55,7 +55,7 @@ export interface RolloutTask {
   actual_start_date?: string | null;
   actual_end_date?: string | null;
   task_status: 'Open' | 'Pending' | 'In-progress' | 'Complete' | 'Closed' | 'Reopened';
-  tracking_comments?: string;
+  remarks?: { date?: string; remark: string }[];
 }
 
 export interface CoordinatorRollout {

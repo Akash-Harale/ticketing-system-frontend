@@ -39,6 +39,11 @@ export const setupInterceptors = (onUnauthorized: () => void) => {
 
       // ── 401 Unauthorized: try to refresh ─────────────────────────────────
       if (status === 401 && !originalRequest._retry) {
+        // Do not force logout or refresh for the login endpoint itself
+        if (originalRequest.url?.includes('/auth/login')) {
+          return Promise.reject(new Error(serverMessage));
+        }
+
         const refreshToken = localStorage.getItem('refreshToken');
 
         if (!refreshToken) {
